@@ -5,7 +5,9 @@ import React, { useState } from 'react';
 const ASSETS = ['BTC', 'ETH', 'SOL', 'USDC'] as const;
 type Asset = (typeof ASSETS)[number];
 
-export default function PortfolioBuilder() {
+type Props = { address?: `0x${string}` };
+
+export default function PortfolioBuilder({ address }: Props) {
   const [basket, setBasket] = useState<Asset[]>(['BTC', 'ETH', 'SOL']);
   const [loading, setLoading] = useState(false);
 
@@ -20,10 +22,11 @@ export default function PortfolioBuilder() {
   const save = async () => {
     setLoading(true);
     try {
+      const addr = address ?? '0xYOU';
       await fetch('/api/portfolio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address: '0xYOU', basket }),
+        body: JSON.stringify({ address: addr, basket }),
       });
     } finally {
       setLoading(false);
@@ -41,8 +44,8 @@ export default function PortfolioBuilder() {
           ))}
         </select>
       ))}
-      <button onClick={save} disabled={loading} className="border px-3 py-2 rounded">
-        {loading ? 'Saving…' : 'Save Picks'}
+      <button onClick={save} disabled={loading || !address} className="border px-3 py-2 rounded">
+        {loading ? 'Saving…' : (address ? 'Save Picks' : 'Connect wallet to save')}
       </button>
     </div>
   );
