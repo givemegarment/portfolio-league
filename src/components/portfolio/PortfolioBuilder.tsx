@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 
 const ASSETS = ['BTC', 'ETH', 'SOL', 'USDC'] as const;
 type Asset = (typeof ASSETS)[number];
-
 type Props = { address?: `0x${string}` };
 
 export default function PortfolioBuilder({ address }: Props) {
@@ -38,9 +37,7 @@ export default function PortfolioBuilder({ address }: Props) {
       {basket.map((v, i) => (
         <select key={i} value={v} onChange={onSelect(i)} className="border p-2 rounded">
           {ASSETS.map((a) => (
-            <option key={a} value={a}>
-              {a}
-            </option>
+            <option key={a} value={a}>{a}</option>
           ))}
         </select>
       ))}

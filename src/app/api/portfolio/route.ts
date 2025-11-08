@@ -36,7 +36,14 @@ export async function GET(req: Request) {
   }
 
   const value = await redis.hget<string>(`portfolio:${season}:${week}`, address);
-  const basket: string[] | null = value ? JSON.parse(value) : null;
+
+  let basket: string[] | null = null;
+  if (value) {
+    const parsed: unknown = JSON.parse(value);
+    if (Array.isArray(parsed) && parsed.every((v) => typeof v === 'string')) {
+      basket = parsed as string[];
+    }
+  }
 
   return NextResponse.json({ address, basket, season, week });
 }
