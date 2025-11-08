@@ -5,10 +5,11 @@ type ZMember = { member: string; score: number };
 type LeaderRow = { rank: number; user: string; score: number; basket: string };
 
 export async function GET() {
-  const top = await redis.zrange<ZMember>('leaderboard', 0, 49, {
+  const raw = await redis.zrange('leaderboard', 0, 49, {
     rev: true,
     withScores: true,
   });
+  const top = raw as ZMember[];
 
   const rows: LeaderRow[] = [];
   let rank = 1;
