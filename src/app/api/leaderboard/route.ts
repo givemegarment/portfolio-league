@@ -5,7 +5,7 @@ import { redis } from '@/lib/redis'
 
 export async function GET() {
   // топ-50 по убыванию
-  const top = await redis.zrange('leaderboard', 0, 49, { byScore: 'desc', withScores: true }) as any[]
+  const top = await redis.zrange('leaderboard', 0, 49, { rev: true, withScores: true }) as any[]
   const rows: { rank:number; user:string; score:number; basket:string }[] = []
 
   for (const item of top) {
