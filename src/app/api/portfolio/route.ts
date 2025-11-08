@@ -1,31 +1,42 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { NextResponse } from 'next/server'
-import { redis } from '@/lib/redis'
+import { NextResponse } from 'next/server';
+import { redis } from '@/lib/redis';
 
-const WHITELIST = ['BTC','ETH','SOL','USDC'] as const
-type AssetId = typeof WHITELIST[number]
+type SavePayload = {
+  address: string;
+  basket: string[];
+  week?: number;
+  season?: string;
+};
 
 export async function POST(req: Request) {
-  try {
-    const { address, basket } = await req.json() as { address?: string, basket: AssetId[] }
-    if (!Array.isArray(basket) || basket.length !== 3) {
-      return NextResponse.json({ error: 'Pick exactly 3 assets' }, { status: 400 })
-    }
-    for (const a of basket) {
-      if (!WHITELIST.includes(a as any)) {
-        return NextResponse.json({ error: `Invalid asset: ${a}` }, { status: 400 })
-      }
-    }
-    const user = (address ?? 'guest').toLowerCase()
-    // временный мок-скор (позже заменим на реальные цены)
-    const score = Math.round((100 + Math.random() * 20) * 10) / 10
+  const body = (await req.json()) as SavePayload;
 
-    await redis.set(`portfolio:${user}`, { user, basket, score, ts: Date.now() })
-    await redis.zadd('leaderboard', { member: user, score })
-
-    return NextResponse.json({ ok: true, user, score })
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'server error' }, { status: 500 })
+  if (!body?.address || !Array.isArray(body.basket) || body.basket.length !== 3) {
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
+
+  const season = body.season ?? 's1';
+  const week = body.week ?? 1;
+
+  await redis.hset(`portfolio:${season}:${week}`, {
+    [body.address]: JSON.stringify(body.basket),
+  });
+
+  return NextResponse.json({ ok: true });
+}
+
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const address = searchParams.get('address');
+  const season = searchParams.get('season') ?? 's1';
+  const week = Number(searchParams.get('week') ?? 1);
+
+  if (!address) {
+    return NextResponse.json({ error: 'address required' }, { status: 400 });
+  }
+
+  const value = await redis.hget<string>(`portfolio:${season}:${week}`, address);
+  const basket: string[] | null = value ? JSON.parse(value) : null;
+
+  return NextResponse.json({ address, basket, season, week });
 }
