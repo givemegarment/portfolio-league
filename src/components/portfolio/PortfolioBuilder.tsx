@@ -32,6 +32,7 @@ const ASSETS = [
 
 type AssetSymbol = typeof ASSETS[number]['symbol'];
 type Allocation = { symbol: AssetSymbol; percentage: number };
+type PriceData = { price: number; change24h: number };
 type Props = { address?: `0x${string}` };
 
 export default function PortfolioBuilder({ address }: Props) {
@@ -42,39 +43,86 @@ export default function PortfolioBuilder({ address }: Props) {
   ]);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [prices, setPrices] = useState<Record<string, number>>({});
+  const [prices, setPrices] = useState<Record<string, PriceData>>({});
+  const [pricesLoading, setPricesLoading] = useState(true);
+  const [lastPriceUpdate, setLastPriceUpdate] = useState<number | null>(null);
+  const [isLocked, setIsLocked] = useState(false);
 
-  // Fetch prices on mount
+  // Fetch real prices from API
   useEffect(() => {
-    setPrices({
-      BTC: 97234.50,
-      ETH: 3642.18,
-      SOL: 234.56,
-      USDC: 1.00,
-    });
+    const fetchPrices = async () => {
+      try {
+        const response = await fetch('/api/prices');
+        if (!response.ok) throw new Error('Failed to fetch prices');
+        
+        const data = await response.json();
+        
+        if (data.prices) {
+          setPrices(data.prices);
+          setLastPriceUpdate(data.lastUpdated);
+        }
+      } catch (error) {
+        console.error('Error fetching prices:', error);
+        // Fallback to show something
+        setPrices({
+          BTC: { price: 97000, change24h: 0 },
+          ETH: { price: 3600, change24h: 0 },
+          SOL: { price: 230, change24h: 0 },
+          USDC: { price: 1, change24h: 0 },
+        });
+      } finally {
+        setPricesLoading(false);
+      }
+    };
+
+    fetchPrices();
+    
+    // Refresh prices every 60 seconds
+    const interval = setInterval(fetchPrices, 60000);
+    return () => clearInterval(interval);
   }, []);
+
+  // Load existing portfolio if user is connected
+  useEffect(() => {
+    if (!address) return;
+
+    const loadPortfolio = async () => {
+      try {
+        const response = await fetch(`/api/portfolio?address=${address}`);
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        
+        if (data.isLocked) {
+          setIsLocked(true);
+        }
+        
+        if (data.portfolio?.allocations) {
+          setAllocations(data.portfolio.allocations as Allocation[]);
+        }
+      } catch (error) {
+        console.error('Error loading portfolio:', error);
+      }
+    };
+
+    loadPortfolio();
+  }, [address]);
 
   const totalPercentage = allocations.reduce((sum, a) => sum + a.percentage, 0);
   const isValid = totalPercentage === 100 && allocations.length > 0;
 
-  // Add an asset to portfolio
   const addAsset = (symbol: AssetSymbol) => {
     if (allocations.find(a => a.symbol === symbol)) return;
-    
-    // Add with 0% initially, user will adjust
     setAllocations(prev => [...prev, { symbol, percentage: 0 }]);
   };
 
-  // Remove an asset from portfolio
   const removeAsset = (symbol: AssetSymbol) => {
-    if (allocations.length <= 1) return; // Keep at least one
+    if (allocations.length <= 1) return;
     setAllocations(prev => prev.filter(a => a.symbol !== symbol));
   };
 
-  // Update allocation percentage
   const updateAllocation = useCallback((symbol: AssetSymbol, newPercentage: number) => {
     const clampedPercentage = Math.max(0, Math.min(100, newPercentage));
-    
     setAllocations(prev => 
       prev.map(a => 
         a.symbol === symbol ? { ...a, percentage: clampedPercentage } : a
@@ -82,13 +130,10 @@ export default function PortfolioBuilder({ address }: Props) {
     );
   }, []);
 
-  // Auto-balance to reach 100%
   const autoBalance = () => {
     if (allocations.length === 0) return;
-    
     const equalShare = Math.floor(100 / allocations.length);
     const remainder = 100 - (equalShare * allocations.length);
-    
     setAllocations(prev => 
       prev.map((a, i) => ({
         ...a,
@@ -97,7 +142,7 @@ export default function PortfolioBuilder({ address }: Props) {
     );
   };
 
-  const canSave = !!address && isValid;
+  const canSave = !!address && isValid && !isLocked;
 
   const save = async () => {
     if (!canSave) return;
@@ -112,10 +157,14 @@ export default function PortfolioBuilder({ address }: Props) {
           portfolio: allocations.map(a => ({ symbol: a.symbol, percentage: a.percentage }))
         }),
       });
-      if (!res.ok) throw new Error(await res.text());
-      setStatus({ type: 'success', message: 'Portfolio saved! Good luck this week.' });
-    } catch {
-      setStatus({ type: 'error', message: 'Something went wrong. Please try again.' });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to save');
+      }
+      setStatus({ type: 'success', message: 'Portfolio locked in! Good luck this week. 🎯' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Something went wrong. Please try again.';
+      setStatus({ type: 'error', message });
     } finally {
       setSaving(false);
     }
@@ -127,6 +176,11 @@ export default function PortfolioBuilder({ address }: Props) {
     return `$${price.toFixed(4)}`;
   };
 
+  const formatChange = (change: number) => {
+    const sign = change >= 0 ? '+' : '';
+    return `${sign}${change.toFixed(2)}%`;
+  };
+
   const selectedSymbols = allocations.map(a => a.symbol);
 
   return (
@@ -135,7 +189,12 @@ export default function PortfolioBuilder({ address }: Props) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-white">Build Your Portfolio</h2>
-          <p className="text-sm text-white/50">Allocate percentages to your selected assets</p>
+          <p className="text-sm text-white/50">
+            {isLocked 
+              ? 'Picks are locked. Come back next Monday!'
+              : 'Allocate percentages to your selected assets'
+            }
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <span 
@@ -150,13 +209,34 @@ export default function PortfolioBuilder({ address }: Props) {
         </div>
       </div>
 
+      {/* Lock Warning */}
+      {isLocked && (
+        <div className="rounded-xl border border-accent-amber/20 bg-accent-amber/10 px-4 py-3">
+          <div className="flex items-center gap-2 text-accent-amber">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <span className="text-sm font-medium">Week is locked - your picks are set!</span>
+          </div>
+        </div>
+      )}
+
+      {/* Price Update Indicator */}
+      {lastPriceUpdate && (
+        <div className="flex items-center justify-end gap-2 text-xs text-white/30">
+          <div className="h-1.5 w-1.5 rounded-full bg-accent-emerald animate-pulse" />
+          <span>Live prices • Updated {new Date(lastPriceUpdate).toLocaleTimeString()}</span>
+        </div>
+      )}
+
       {/* Asset Selection */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium uppercase tracking-wider text-white/40">Select Assets</span>
           <button
             onClick={autoBalance}
-            className="text-xs text-base-blue hover:text-base-blue-light transition-colors"
+            disabled={isLocked}
+            className="text-xs text-base-blue hover:text-base-blue-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Auto-balance
           </button>
@@ -165,19 +245,21 @@ export default function PortfolioBuilder({ address }: Props) {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {ASSETS.map((asset) => {
             const isSelected = selectedSymbols.includes(asset.symbol);
+            const priceData = prices[asset.symbol];
+            const isPositive = priceData && priceData.change24h >= 0;
             
             return (
               <button
                 key={asset.symbol}
                 onClick={() => isSelected ? removeAsset(asset.symbol) : addAsset(asset.symbol)}
-                disabled={!address}
+                disabled={!address || isLocked}
                 className={`
                   group relative overflow-hidden rounded-2xl border p-4 text-left transition-all duration-300
                   ${isSelected 
                     ? 'border-base-blue/50 bg-base-blue/10' 
                     : 'border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/5'
                   }
-                  ${!address ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
+                  ${(!address || isLocked) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
                 `}
               >
                 {/* Selection indicator */}
@@ -189,7 +271,7 @@ export default function PortfolioBuilder({ address }: Props) {
                   </div>
                 )}
                 
-                {/* Glow effect on selection */}
+                {/* Glow effect */}
                 {isSelected && (
                   <div 
                     className="absolute inset-0 opacity-20 blur-2xl"
@@ -214,12 +296,21 @@ export default function PortfolioBuilder({ address }: Props) {
                   <div className="text-xs text-white/40">{asset.name}</div>
                 </div>
                 
-                {/* Price */}
-                {prices[asset.symbol] && (
-                  <div className="mt-3 font-mono text-sm text-white/60">
-                    {formatPrice(prices[asset.symbol])}
-                  </div>
-                )}
+                {/* Price with 24h change */}
+                <div className="mt-3 space-y-1">
+                  {pricesLoading ? (
+                    <div className="h-4 w-16 rounded shimmer" />
+                  ) : priceData ? (
+                    <>
+                      <div className="font-mono text-sm text-white/80">
+                        {formatPrice(priceData.price)}
+                      </div>
+                      <div className={`font-mono text-xs ${isPositive ? 'text-accent-emerald' : 'text-accent-rose'}`}>
+                        {formatChange(priceData.change24h)}
+                      </div>
+                    </>
+                  ) : null}
+                </div>
               </button>
             );
           })}
@@ -271,7 +362,8 @@ export default function PortfolioBuilder({ address }: Props) {
                           max="100"
                           value={allocation.percentage}
                           onChange={(e) => updateAllocation(allocation.symbol, parseInt(e.target.value))}
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          disabled={isLocked}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                         />
                       </div>
                     </div>
@@ -280,7 +372,8 @@ export default function PortfolioBuilder({ address }: Props) {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => updateAllocation(allocation.symbol, allocation.percentage - 5)}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                        disabled={isLocked}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-white/60 hover:bg-white/10 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
@@ -293,13 +386,15 @@ export default function PortfolioBuilder({ address }: Props) {
                         max="100"
                         value={allocation.percentage}
                         onChange={(e) => updateAllocation(allocation.symbol, parseInt(e.target.value) || 0)}
-                        className="w-16 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-center font-mono text-sm text-white focus:border-base-blue focus:outline-none"
+                        disabled={isLocked}
+                        className="w-16 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-center font-mono text-sm text-white focus:border-base-blue focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       <span className="text-white/40">%</span>
                       
                       <button
                         onClick={() => updateAllocation(allocation.symbol, allocation.percentage + 5)}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                        disabled={isLocked}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-white/60 hover:bg-white/10 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -307,7 +402,7 @@ export default function PortfolioBuilder({ address }: Props) {
                       </button>
                       
                       {/* Remove button */}
-                      {allocations.length > 1 && (
+                      {allocations.length > 1 && !isLocked && (
                         <button
                           onClick={() => removeAsset(allocation.symbol)}
                           className="flex h-8 w-8 items-center justify-center rounded-lg text-white/30 hover:bg-accent-rose/10 hover:text-accent-rose transition-colors"
@@ -325,7 +420,7 @@ export default function PortfolioBuilder({ address }: Props) {
           </div>
           
           {/* Total validation */}
-          {!isValid && (
+          {!isValid && !isLocked && (
             <div className="flex items-center justify-between rounded-xl border border-accent-rose/20 bg-accent-rose/5 px-4 py-3">
               <div className="flex items-center gap-2 text-accent-rose">
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -349,7 +444,7 @@ export default function PortfolioBuilder({ address }: Props) {
         </div>
       )}
 
-      {/* Portfolio Preview - Visual Bar */}
+      {/* Portfolio Preview */}
       {allocations.length > 0 && (
         <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
           <div className="mb-3 text-xs font-medium uppercase tracking-wider text-white/40">
@@ -414,7 +509,14 @@ export default function PortfolioBuilder({ address }: Props) {
         disabled={!canSave || saving}
         className="btn-primary w-full py-4 text-base"
       >
-        {!address ? (
+        {isLocked ? (
+          <span className="flex items-center justify-center gap-2">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            Week Locked
+          </span>
+        ) : !address ? (
           <span className="flex items-center justify-center gap-2">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -472,7 +574,10 @@ export default function PortfolioBuilder({ address }: Props) {
 
       {/* Info Footer */}
       <p className="text-center text-xs text-white/30">
-        Allocations are tied to your wallet address. You can update until the gameweek locks.
+        {isLocked 
+          ? 'Your picks are locked for this week. Results will be calculated on Sunday.'
+          : 'Allocations are tied to your wallet address. You can update until Sunday 23:59 UTC.'
+        }
       </p>
     </div>
   );

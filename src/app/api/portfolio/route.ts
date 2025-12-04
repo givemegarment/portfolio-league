@@ -1,23 +1,71 @@
 import { NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
+import { getCurrentWeek, isLocked, getWeekKey } from '@/lib/weeks';
 
 type AllocationItem = {
   symbol: string;
   percentage: number;
 };
 
+type PriceData = {
+  price: number;
+  change24h: number;
+};
+
+type PricesResponse = {
+  prices: Record<string, PriceData>;
+  lastUpdated: number;
+  cached: boolean;
+};
+
 type SavePayload = {
   address: string;
-  portfolio?: AllocationItem[];  // New format with percentages
-  basket?: string[];             // Legacy format (equal weights)
-  week?: number;
-  season?: string;
+  portfolio?: AllocationItem[];
+  basket?: string[]; // Legacy format
 };
 
 type StoredPortfolio = {
   allocations: AllocationItem[];
+  entryPrices: Record<string, number>;
   timestamp: number;
 };
+
+/**
+ * Fetch current prices from our prices API
+ */
+async function fetchCurrentPrices(): Promise<Record<string, number>> {
+  // Use internal API call
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  
+  try {
+    const response = await fetch(`${baseUrl}/api/prices`, {
+      cache: 'no-store',
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch prices');
+    }
+    
+    const data: PricesResponse = await response.json();
+    
+    // Transform to simple price map
+    const prices: Record<string, number> = {};
+    for (const [symbol, priceData] of Object.entries(data.prices)) {
+      prices[symbol] = priceData.price;
+    }
+    
+    return prices;
+  } catch (error) {
+    console.error('Error fetching prices:', error);
+    // Fallback prices if API fails (should not happen in production)
+    return {
+      BTC: 97000,
+      ETH: 3600,
+      SOL: 230,
+      USDC: 1,
+    };
+  }
+}
 
 export async function POST(req: Request) {
   const body = (await req.json()) as SavePayload;
@@ -26,11 +74,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Address required' }, { status: 400 });
   }
 
+  // Check if picks are locked
+  if (isLocked()) {
+    return NextResponse.json(
+      { error: 'Picks are locked for this week. Come back next Monday!' },
+      { status: 403 }
+    );
+  }
+
   let allocations: AllocationItem[] = [];
 
   // Handle new format with percentages
   if (body.portfolio && Array.isArray(body.portfolio)) {
-    // Validate allocations
     const totalPercentage = body.portfolio.reduce((sum, item) => sum + item.percentage, 0);
     
     if (totalPercentage !== 100) {
@@ -61,32 +116,56 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'At least one allocation required' }, { status: 400 });
   }
 
-  const season = body.season ?? 's1';
-  const week = body.week ?? 1;
+  // Fetch current prices for entry snapshot
+  const currentPrices = await fetchCurrentPrices();
+  
+  // Build entry prices map for the selected assets
+  const entryPrices: Record<string, number> = {};
+  for (const allocation of allocations) {
+    const price = currentPrices[allocation.symbol];
+    if (price) {
+      entryPrices[allocation.symbol] = price;
+    }
+  }
+
+  // Get current week info
+  const { season, week } = getCurrentWeek();
+  const weekKey = getWeekKey(season, week);
 
   const portfolioData: StoredPortfolio = {
     allocations,
+    entryPrices,
     timestamp: Date.now(),
   };
 
-  await redis.hset(`portfolio:${season}:${week}`, {
+  await redis.hset(weekKey, {
     [body.address]: JSON.stringify(portfolioData),
   });
 
-  return NextResponse.json({ ok: true, portfolio: portfolioData });
+  return NextResponse.json({ 
+    ok: true, 
+    portfolio: portfolioData,
+    week: { season, week },
+  });
 }
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const address = searchParams.get('address');
-  const season = searchParams.get('season') ?? 's1';
-  const week = Number(searchParams.get('week') ?? 1);
+  const seasonParam = searchParams.get('season');
+  const weekParam = searchParams.get('week');
 
   if (!address) {
     return NextResponse.json({ error: 'address required' }, { status: 400 });
   }
 
-  const value = await redis.hget<string>(`portfolio:${season}:${week}`, address);
+  // Use current week if not specified
+  const currentWeek = getCurrentWeek();
+  const season = seasonParam ?? currentWeek.season;
+  const week = weekParam ? Number(weekParam) : currentWeek.week;
+
+  const weekKey = getWeekKey(season, week);
+  const value = await redis.hget<string>(weekKey, address);
 
   let portfolio: StoredPortfolio | null = null;
   let basket: string[] | null = null;
@@ -95,7 +174,7 @@ export async function GET(req: Request) {
     try {
       const parsed = JSON.parse(value);
       
-      // Handle new format
+      // Handle new format with entryPrices
       if (parsed.allocations && Array.isArray(parsed.allocations)) {
         portfolio = parsed as StoredPortfolio;
         basket = parsed.allocations.map((a: AllocationItem) => a.symbol);
@@ -111,6 +190,7 @@ export async function GET(req: Request) {
             symbol,
             percentage: equalWeight + (idx === 0 ? remainder : 0),
           })),
+          entryPrices: {}, // No entry prices for legacy data
           timestamp: 0,
         };
       }
@@ -122,8 +202,10 @@ export async function GET(req: Request) {
   return NextResponse.json({ 
     address, 
     portfolio,
-    basket, // Keep for backwards compatibility
+    basket,
     season, 
-    week 
+    week,
+    isLocked: isLocked(),
+    weekInfo: currentWeek,
   });
 }

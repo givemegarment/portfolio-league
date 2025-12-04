@@ -5,17 +5,48 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 
+type WeekInfo = {
+  season: string;
+  week: number;
+  startsAt: string;
+  endsAt: string;
+  isLocked: boolean;
+};
+
 function CountdownTimer() {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0 });
+  const [weekInfo, setWeekInfo] = useState<WeekInfo | null>(null);
+
+  useEffect(() => {
+    // Fetch week info to get accurate end time
+    fetch('/api/portfolio?address=0x0000000000000000000000000000000000000000')
+      .then(r => r.json())
+      .then(data => {
+        if (data.weekInfo) {
+          setWeekInfo(data.weekInfo);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const calculateTimeLeft = () => {
-      const now = new Date();
-      const nextSunday = new Date(now);
-      nextSunday.setUTCDate(now.getUTCDate() + (7 - now.getUTCDay()));
-      nextSunday.setUTCHours(23, 59, 59, 999);
+      let endsAt: Date;
+      
+      if (weekInfo?.endsAt) {
+        endsAt = new Date(weekInfo.endsAt);
+      } else {
+        // Fallback: calculate next Sunday 23:59 UTC
+        const now = new Date();
+        endsAt = new Date(now);
+        const dayOfWeek = now.getUTCDay();
+        const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+        endsAt.setUTCDate(now.getUTCDate() + daysUntilSunday);
+        endsAt.setUTCHours(23, 59, 59, 999);
+      }
 
-      const diff = nextSunday.getTime() - now.getTime();
+      const now = new Date();
+      const diff = Math.max(0, endsAt.getTime() - now.getTime());
 
       return {
         days: Math.floor(diff / (1000 * 60 * 60 * 24)),
@@ -27,7 +58,7 @@ function CountdownTimer() {
     setTimeLeft(calculateTimeLeft());
     const timer = setInterval(() => setTimeLeft(calculateTimeLeft()), 60000);
     return () => clearInterval(timer);
-  }, []);
+  }, [weekInfo]);
 
   return (
     <div className="flex items-center gap-1.5 text-xs">
@@ -49,6 +80,28 @@ function CountdownTimer() {
         {timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m
       </span>
     </div>
+  );
+}
+
+function SeasonWeekBadge() {
+  const [info, setInfo] = useState({ season: '1', week: 1 });
+
+  useEffect(() => {
+    fetch('/api/portfolio?address=0x0000000000000000000000000000000000000000')
+      .then(r => r.json())
+      .then(data => {
+        if (data.weekInfo) {
+          setInfo({
+            season: data.weekInfo.season.replace('s', ''),
+            week: data.weekInfo.week,
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  return (
+    <div className="text-xs text-white/40">Season {info.season} • Week {info.week}</div>
   );
 }
 
@@ -186,7 +239,7 @@ export default function Nav() {
           </div>
           <div className="hidden sm:block">
             <div className="font-bold text-white">Portfolio League</div>
-            <div className="text-xs text-white/40">Season 1 • Week 4</div>
+            <SeasonWeekBadge />
           </div>
         </Link>
 

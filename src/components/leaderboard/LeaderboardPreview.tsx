@@ -12,8 +12,8 @@ type Row = {
   rank: number; 
   user: string; 
   score: number; 
-  basket: string;
-  allocations?: AllocationItem[];
+  allocations: AllocationItem[];
+  entryPrices?: Record<string, number>;
 };
 
 const ASSET_COLORS: Record<string, string> = {
@@ -23,7 +23,6 @@ const ASSET_COLORS: Record<string, string> = {
   USDC: '#2775CA',
 };
 
-// Generate a consistent color from an address
 function addressToColor(address: string): string {
   const colors = [
     '#F7931A', '#627EEA', '#9945FF', '#2775CA', 
@@ -34,18 +33,15 @@ function addressToColor(address: string): string {
   return colors[hash % colors.length];
 }
 
-// Generate initials from address
 function addressToInitials(address: string): string {
   return address.slice(2, 4).toUpperCase();
 }
 
-// Shorten address for display
 function shortenAddress(address: string): string {
   if (address.length <= 12) return address;
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
-// Allocation badge component with percentage
 function AllocationBadge({ symbol, percentage }: { symbol: string; percentage?: number }) {
   const color = ASSET_COLORS[symbol] || '#666';
   
@@ -65,14 +61,13 @@ function AllocationBadge({ symbol, percentage }: { symbol: string; percentage?: 
         className="rounded-full"
       />
       <span style={{ color }}>{symbol}</span>
-      {percentage !== undefined && (
+      {percentage !== undefined && percentage > 0 && (
         <span className="text-white/40">{percentage}%</span>
       )}
     </div>
   );
 }
 
-// Rank badge component
 function RankBadge({ rank }: { rank: number }) {
   if (rank === 1) {
     return (
@@ -102,7 +97,6 @@ function RankBadge({ rank }: { rank: number }) {
   );
 }
 
-// Avatar component
 function Avatar({ address }: { address: string }) {
   const color = addressToColor(address);
   const initials = addressToInitials(address);
@@ -117,7 +111,6 @@ function Avatar({ address }: { address: string }) {
   );
 }
 
-// Skeleton row for loading state
 function SkeletonRow() {
   return (
     <tr className="border-b border-white/5">
@@ -149,13 +142,27 @@ export default function LeaderboardPreview() {
 
   useEffect(() => {
     let alive = true;
-    fetch('/api/leaderboard')
-      .then((r) => r.json())
-      .then((data: Row[]) => {
-        if (alive) setRows(Array.isArray(data) ? data : []);
-      })
-      .catch(() => setErr('Failed to load leaderboard'));
-    return () => { alive = false; };
+    
+    const fetchLeaderboard = () => {
+      fetch('/api/leaderboard?limit=10')
+        .then((r) => r.json())
+        .then((data: Row[]) => {
+          if (alive) setRows(Array.isArray(data) ? data : []);
+        })
+        .catch(() => {
+          if (alive) setErr('Failed to load leaderboard');
+        });
+    };
+
+    fetchLeaderboard();
+    
+    // Refresh leaderboard every 60 seconds (prices update, scores change)
+    const interval = setInterval(fetchLeaderboard, 60000);
+    
+    return () => { 
+      alive = false; 
+      clearInterval(interval);
+    };
   }, []);
 
   if (err) {
@@ -188,7 +195,10 @@ export default function LeaderboardPreview() {
             </div>
             <span className="text-sm font-semibold text-white">Top Performers</span>
           </div>
-          <span className="text-xs text-white/40">This Week</span>
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 w-1.5 rounded-full bg-accent-emerald animate-pulse" />
+            <span className="text-xs text-white/40">Live</span>
+          </div>
         </div>
       </div>
       
@@ -229,30 +239,13 @@ export default function LeaderboardPreview() {
             )}
             
             {rows?.map((r, idx) => {
-              // Use allocations if available, otherwise parse basket
-              let allocations: AllocationItem[] = r.allocations || [];
-              
-              if (!r.allocations) {
-                try { 
-                  const parsed = JSON.parse(r.basket);
-                  if (Array.isArray(parsed)) {
-                    if (typeof parsed[0] === 'string') {
-                      // Legacy format
-                      allocations = parsed.map((symbol: string) => ({ symbol, percentage: 0 }));
-                    } else if (parsed[0]?.symbol) {
-                      allocations = parsed;
-                    }
-                  }
-                } catch {}
-              }
-              
               const isTopThree = r.rank <= 3;
               const scoreValue = typeof r.score === 'number' ? r.score : 0;
               const isPositive = scoreValue >= 0;
               
               return (
                 <tr 
-                  key={r.rank} 
+                  key={`${r.user}-${r.rank}`} 
                   className={`
                     border-b border-white/5 transition-colors duration-200
                     ${isTopThree ? 'bg-white/[0.02]' : ''}
@@ -285,11 +278,11 @@ export default function LeaderboardPreview() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
-                      {allocations.map((a, i) => (
+                      {r.allocations?.map((a, i) => (
                         <AllocationBadge 
                           key={`${a.symbol}-${i}`} 
                           symbol={a.symbol} 
-                          percentage={a.percentage > 0 ? a.percentage : undefined}
+                          percentage={a.percentage}
                         />
                       ))}
                     </div>

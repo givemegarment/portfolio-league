@@ -6,12 +6,11 @@ import PortfolioBuilder from '@/components/portfolio/PortfolioBuilder';
 import LeaderboardPreview from '@/components/leaderboard/LeaderboardPreview';
 import Nav from '@/components/chrome/Nav';
 
-// Stats data - in production, fetch from API
-const STATS = {
-  totalPlayers: 247,
-  prizePool: 1000,
-  weekNumber: 4,
-  season: 1,
+type Stats = {
+  totalPlayers: number;
+  prizePool: number;
+  weekNumber: number;
+  season: number;
 };
 
 function StatCard({
@@ -52,7 +51,6 @@ function HowItWorksStep({
 }) {
   return (
     <div className="relative">
-      {/* Connector line */}
       {step < 4 && (
         <div className="absolute left-6 top-14 h-full w-px bg-gradient-to-b from-white/10 to-transparent hidden sm:block" />
       )}
@@ -72,14 +70,44 @@ function HowItWorksStep({
 
 export default function HomeClient() {
   const [mounted, setMounted] = useState(false);
+  const [stats, setStats] = useState<Stats>({
+    totalPlayers: 0,
+    prizePool: 1000,
+    weekNumber: 1,
+    season: 1,
+  });
   const { address, isConnected } = useAccount();
 
   useEffect(() => {
     setMounted(true);
+    
+    // Fetch dynamic stats
+    const fetchStats = async () => {
+      try {
+        // Get leaderboard to count players
+        const leaderboardRes = await fetch('/api/leaderboard?limit=100');
+        const leaderboardData = await leaderboardRes.json();
+        
+        // Get week info
+        const portfolioRes = await fetch('/api/portfolio?address=0x0000000000000000000000000000000000000000');
+        const portfolioData = await portfolioRes.json();
+        
+        setStats(prev => ({
+          ...prev,
+          totalPlayers: Array.isArray(leaderboardData) ? leaderboardData.length : 0,
+          weekNumber: portfolioData.weekInfo?.week || prev.weekNumber,
+          season: parseInt(portfolioData.weekInfo?.season?.replace('s', '') || '1'),
+        }));
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      }
+    };
+
+    fetchStats();
   }, []);
 
   if (!mounted) {
-    return null; // Prevent hydration mismatch
+    return null;
   }
 
   return (
@@ -99,7 +127,7 @@ export default function HomeClient() {
           <div className="relative">
             <div className="inline-flex items-center gap-2 rounded-full bg-base-blue/10 px-3 py-1 text-xs font-medium text-base-blue animate-fade-in-down">
               <div className="h-1.5 w-1.5 rounded-full bg-base-blue animate-pulse" />
-              Season {STATS.season} • Week {STATS.weekNumber} Live
+              Season {stats.season} • Week {stats.weekNumber} Live
             </div>
 
             <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl animate-fade-in-up">
@@ -129,7 +157,7 @@ export default function HomeClient() {
             <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <StatCard
                 label="Players"
-                value={STATS.totalPlayers.toString()}
+                value={stats.totalPlayers.toString()}
                 delay={200}
                 icon={
                   <svg
@@ -149,7 +177,7 @@ export default function HomeClient() {
               />
               <StatCard
                 label="Prize Pool"
-                value={`$${STATS.prizePool}`}
+                value={`$${stats.prizePool.toLocaleString()}`}
                 delay={300}
                 icon={
                   <svg
@@ -169,7 +197,7 @@ export default function HomeClient() {
               />
               <StatCard
                 label="Top 10% Win"
-                value="25+"
+                value={stats.totalPlayers > 0 ? `${Math.max(1, Math.ceil(stats.totalPlayers * 0.1))}+` : '—'}
                 delay={400}
                 icon={
                   <svg
@@ -253,18 +281,18 @@ export default function HomeClient() {
               <div className="space-y-6">
                 <HowItWorksStep
                   step={1}
-                  title="Pick 3 Assets"
-                  description="Choose from BTC, ETH, SOL, or USDC"
+                  title="Pick Your Assets"
+                  description="Choose from BTC, ETH, SOL, or USDC and set your allocation"
                 />
                 <HowItWorksStep
                   step={2}
                   title="Lock In Picks"
-                  description="Submit before Sunday 11:59 PM UTC"
+                  description="Submit before Sunday 23:59 UTC"
                 />
                 <HowItWorksStep
                   step={3}
                   title="Track Performance"
-                  description="Watch your ranking update in real-time"
+                  description="Watch your ranking update with real prices"
                 />
                 <HowItWorksStep
                   step={4}

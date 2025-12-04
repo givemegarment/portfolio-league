@@ -1,107 +1,199 @@
 import { NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
+import { getCurrentWeek, getWeekKey } from '@/lib/weeks';
+import { calculateScore, type StoredPortfolio, type AllocationItem, type PriceData } from '@/lib/scoring';
 
-type AllocationItem = {
-  symbol: string;
-  percentage: number;
+type PricesResponse = {
+  prices: Record<string, PriceData>;
+  lastUpdated: number;
+  cached: boolean;
 };
 
-type Item = { member: string; score: number };
 type LeaderRow = { 
   rank: number; 
   user: string; 
   score: number; 
-  basket: string;
-  allocations?: AllocationItem[];
+  allocations: AllocationItem[];
+  entryPrices: Record<string, number>;
 };
 
-function hasMemberScore(x: unknown): x is Item {
-  if (typeof x !== 'object' || x === null) return false;
-  const r = x as Record<string, unknown>;
-  return typeof r.member === 'string' && typeof r.score === 'number';
-}
-
-function normalize(raw: unknown): Item[] {
-  if (!Array.isArray(raw)) return [];
-  if (raw.length && hasMemberScore(raw[0])) return raw as Item[];
-  const out: Item[] = [];
-  for (let i = 0; i < raw.length; i += 2) {
-    const m = raw[i];
-    const s = raw[i + 1];
-    if (typeof m === 'string' && typeof s === 'number') out.push({ member: m, score: s });
-  }
-  return out;
-}
-
-function parseAllocations(basketStr: string): AllocationItem[] | undefined {
+/**
+ * Fetch current prices from our prices API
+ */
+async function fetchCurrentPrices(): Promise<Record<string, PriceData>> {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  
   try {
-    const parsed = JSON.parse(basketStr);
+    const response = await fetch(`${baseUrl}/api/prices`, {
+      cache: 'no-store',
+    });
     
-    // New format: array of {symbol, percentage}
-    if (Array.isArray(parsed) && parsed[0]?.percentage !== undefined) {
-      return parsed as AllocationItem[];
+    if (!response.ok) {
+      throw new Error('Failed to fetch prices');
     }
     
-    // Legacy format: array of symbols - convert to equal weights
-    if (Array.isArray(parsed) && typeof parsed[0] === 'string') {
-      const equalWeight = Math.floor(100 / parsed.length);
-      const remainder = 100 - (equalWeight * parsed.length);
-      return parsed.map((symbol: string, idx: number) => ({
-        symbol,
-        percentage: equalWeight + (idx === 0 ? remainder : 0),
-      }));
-    }
-  } catch {
-    // Invalid JSON
+    const data: PricesResponse = await response.json();
+    return data.prices;
+  } catch (error) {
+    console.error('Error fetching prices:', error);
+    // Fallback prices
+    return {
+      BTC: { price: 97000, change24h: 0 },
+      ETH: { price: 3600, change24h: 0 },
+      SOL: { price: 230, change24h: 0 },
+      USDC: { price: 1, change24h: 0 },
+    };
   }
-  return undefined;
 }
 
-export async function GET() {
-  const raw = await redis.zrange('leaderboard', 0, 49, { rev: true, withScores: true });
-  const items = normalize(raw);
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const limitParam = searchParams.get('limit');
+  const limit = limitParam ? Math.min(100, Math.max(1, parseInt(limitParam))) : 50;
 
-  const rows: LeaderRow[] = [];
-  let rank = 1;
-  for (const { member, score } of items) {
-    const [user = 'unknown', basket = '[]'] = member.split('|', 2);
-    const allocations = parseAllocations(basket);
-    rows.push({ rank: rank++, user, score, basket, allocations });
+  // Get current week
+  const { season, week } = getCurrentWeek();
+  const weekKey = getWeekKey(season, week);
+
+  // Fetch all portfolios for this week
+  const allPortfolios = await redis.hgetall<Record<string, string>>(weekKey);
+  
+  if (!allPortfolios || Object.keys(allPortfolios).length === 0) {
+    return NextResponse.json([]);
   }
+
+  // Fetch current prices
+  const currentPrices = await fetchCurrentPrices();
+
+  // Calculate scores for all portfolios
+  const scoredPortfolios: Array<{
+    address: string;
+    portfolio: StoredPortfolio;
+    score: number;
+  }> = [];
+
+  for (const [address, portfolioJson] of Object.entries(allPortfolios)) {
+    try {
+      const parsed = JSON.parse(portfolioJson);
+      
+      let portfolio: StoredPortfolio;
+      
+      // Handle new format with entryPrices
+      if (parsed.allocations && parsed.entryPrices) {
+        portfolio = parsed as StoredPortfolio;
+      }
+      // Handle legacy format without entryPrices
+      else if (parsed.allocations && Array.isArray(parsed.allocations)) {
+        // For legacy data without entry prices, we can't calculate real scores
+        // Use 0 as score or skip
+        portfolio = {
+          allocations: parsed.allocations,
+          entryPrices: {},
+          timestamp: parsed.timestamp || 0,
+        };
+      }
+      // Handle very old format (just array of symbols)
+      else if (Array.isArray(parsed)) {
+        const symbols = parsed as string[];
+        const equalWeight = Math.floor(100 / symbols.length);
+        const remainder = 100 - (equalWeight * symbols.length);
+        
+        portfolio = {
+          allocations: symbols.map((symbol, idx) => ({
+            symbol,
+            percentage: equalWeight + (idx === 0 ? remainder : 0),
+          })),
+          entryPrices: {},
+          timestamp: 0,
+        };
+      }
+      else {
+        continue; // Skip invalid data
+      }
+
+      // Calculate score
+      let score = 0;
+      
+      if (Object.keys(portfolio.entryPrices).length > 0) {
+        // Real score calculation
+        const result = calculateScore(portfolio, currentPrices);
+        score = result.totalScore;
+      }
+      // If no entry prices (legacy data), score stays 0
+
+      scoredPortfolios.push({
+        address,
+        portfolio,
+        score,
+      });
+    } catch (error) {
+      console.error(`Error parsing portfolio for ${address}:`, error);
+      continue;
+    }
+  }
+
+  // Sort by score descending
+  scoredPortfolios.sort((a, b) => b.score - a.score);
+
+  // Build leaderboard rows
+  const rows: LeaderRow[] = scoredPortfolios.slice(0, limit).map((item, index) => ({
+    rank: index + 1,
+    user: item.address,
+    score: item.score,
+    allocations: item.portfolio.allocations,
+    entryPrices: item.portfolio.entryPrices,
+  }));
 
   return NextResponse.json(rows);
 }
 
-type SeedBody = { 
-  user: string; 
-  basket?: string[]; 
-  allocations?: AllocationItem[];
-  score: number;
-};
-
+// Keep POST for admin/testing purposes but mark as deprecated
 export async function POST(req: Request) {
-  const body = (await req.json()) as SeedBody;
+  // This is now deprecated - scores are calculated live
+  // Keeping for backwards compatibility during transition
   
-  if (!body?.user || typeof body.score !== 'number') {
+  const body = await req.json();
+  
+  if (!body?.user || !body?.portfolio) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 
-  let basketData: AllocationItem[] | string[];
+  const { season, week } = getCurrentWeek();
+  const weekKey = getWeekKey(season, week);
+
+  // Fetch current prices for entry snapshot
+  const currentPrices = await fetchCurrentPrices();
+  const entryPrices: Record<string, number> = {};
   
-  if (body.allocations && Array.isArray(body.allocations)) {
-    basketData = body.allocations;
-  } else if (body.basket && Array.isArray(body.basket)) {
-    basketData = body.basket;
-  } else {
-    return NextResponse.json({ error: 'basket or allocations required' }, { status: 400 });
+  for (const allocation of body.portfolio) {
+    const priceData = currentPrices[allocation.symbol];
+    if (priceData) {
+      entryPrices[allocation.symbol] = priceData.price;
+    }
   }
 
-  const member = `${body.user}|${JSON.stringify(basketData)}`;
-  await redis.zadd('leaderboard', { score: body.score, member });
-  return NextResponse.json({ ok: true });
+  const portfolioData: StoredPortfolio = {
+    allocations: body.portfolio,
+    entryPrices,
+    timestamp: Date.now(),
+  };
+
+  await redis.hset(weekKey, {
+    [body.user]: JSON.stringify(portfolioData),
+  });
+
+  return NextResponse.json({ ok: true, message: 'Portfolio saved via leaderboard API (deprecated)' });
 }
 
 export async function DELETE() {
+  // Clear current week's data (for testing)
+  const { season, week } = getCurrentWeek();
+  const weekKey = getWeekKey(season, week);
+  
+  await redis.del(weekKey);
+  
+  // Also clear old leaderboard key if it exists
   await redis.del('leaderboard');
-  return NextResponse.json({ ok: true });
+  
+  return NextResponse.json({ ok: true, message: `Cleared ${weekKey}` });
 }
