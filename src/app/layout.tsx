@@ -8,18 +8,33 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://portfolio-league.verce
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
-  title: 'Portfolio League',
-  description: 'Pick 3 assets. Weekly leagues. On-chain scores.',
-  openGraph: { title: 'Portfolio League', description: 'Pick 3 assets. Weekly leagues. On-chain scores.', images: ['/og.svg'], type: 'website' },
-  twitter: { card: 'summary_large_image', title: 'Portfolio League', description: 'Pick 3 assets. Weekly leagues. On-chain scores.', images: ['/og.svg'] },
+  title: 'Portfolio League | Crypto Portfolio Competition',
+  description: 'Pick 3 assets. Compete weekly. Win prizes. The ultimate social crypto portfolio game on Base.',
+  openGraph: { 
+    title: 'Portfolio League', 
+    description: 'Pick 3 assets. Compete weekly. Win prizes on Base.', 
+    images: ['/og.svg'], 
+    type: 'website' 
+  },
+  twitter: { 
+    card: 'summary_large_image', 
+    title: 'Portfolio League', 
+    description: 'Pick 3 assets. Compete weekly. Win prizes on Base.', 
+    images: ['/og.svg'] 
+  },
   icons: { icon: '/favicon.svg', apple: '/apple-touch-icon.png' },
   manifest: '/site.webmanifest',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="bg-black">
-      <body className="text-white antialiased">
+    <html lang="en" className="bg-[#050507]">
+      <body className="min-h-screen text-white antialiased">
+        {/* Background gradient mesh */}
+        <div 
+          className="fixed inset-0 -z-10 bg-gradient-mesh opacity-60"
+          aria-hidden="true"
+        />
         <Providers>{children}</Providers>
       </body>
     </html>
