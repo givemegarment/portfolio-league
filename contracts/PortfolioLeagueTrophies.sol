@@ -171,13 +171,13 @@ contract PortfolioLeagueTrophies is ERC721, ERC721URIStorage, Ownable {
         address[] calldata players,
         TrophyType[] calldata trophyTypes,
         uint256[] calldata seasons,
-        uint256[] calldata weeks,
+        uint256[] calldata weekNumbers,
         uint256[] calldata scores
     ) external onlyAuthorizedMinter {
         require(
             players.length == trophyTypes.length &&
             players.length == seasons.length &&
-            players.length == weeks.length &&
+            players.length == weekNumbers.length &&
             players.length == scores.length,
             "Array length mismatch"
         );
@@ -185,7 +185,7 @@ contract PortfolioLeagueTrophies is ERC721, ERC721URIStorage, Ownable {
         for (uint256 i = 0; i < players.length; i++) {
             // Skip if already awarded (don't revert entire batch)
             bytes32 achievementKey = keccak256(
-                abi.encodePacked(players[i], trophyTypes[i], seasons[i], weeks[i])
+                abi.encodePacked(players[i], trophyTypes[i], seasons[i], weekNumbers[i])
             );
             if (achievementAwarded[achievementKey]) continue;
 
@@ -194,7 +194,7 @@ contract PortfolioLeagueTrophies is ERC721, ERC721URIStorage, Ownable {
             trophies[tokenId] = Trophy({
                 trophyType: trophyTypes[i],
                 season: seasons[i],
-                week: weeks[i],
+                week: weekNumbers[i],
                 score: scores[i],
                 timestamp: block.timestamp
             });
@@ -202,7 +202,7 @@ contract PortfolioLeagueTrophies is ERC721, ERC721URIStorage, Ownable {
             achievementAwarded[achievementKey] = true;
             _safeMint(players[i], tokenId);
 
-            emit TrophyAwarded(players[i], tokenId, trophyTypes[i], seasons[i], weeks[i]);
+            emit TrophyAwarded(players[i], tokenId, trophyTypes[i], seasons[i], weekNumbers[i]);
         }
     }
 
