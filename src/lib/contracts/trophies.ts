@@ -6,8 +6,9 @@
 
 import { type Address } from 'viem';
 
-// Contract address - update after deployment to Base mainnet
-export const TROPHY_CONTRACT_ADDRESS: Address = '0x0000000000000000000000000000000000000000'; // TODO: Deploy and update
+// Contract address on Base mainnet
+// Deployed: https://basescan.org/address/0xf0a34C60BA49Edb94AD0CDA642231dBCc4Cc066A
+export const TROPHY_CONTRACT_ADDRESS: Address = '0xf0a34C60BA49Edb94AD0CDA642231dBCc4Cc066A';
 
 // Trophy types matching the smart contract enum
 export enum TrophyType {
