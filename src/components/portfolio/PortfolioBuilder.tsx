@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import ShareButtons from '@/components/share/ShareButtons';
+import CoachPanel from '@/components/coach/CoachPanel';
+import { type Suggestion } from '@/lib/ai-coach';
 
 const ASSETS = [
   { 
@@ -47,6 +50,9 @@ export default function PortfolioBuilder({ address }: Props) {
   const [pricesLoading, setPricesLoading] = useState(true);
   const [lastPriceUpdate, setLastPriceUpdate] = useState<number | null>(null);
   const [isLocked, setIsLocked] = useState(false);
+  const [hasSavedPortfolio, setHasSavedPortfolio] = useState(false);
+  const [currentScore, setCurrentScore] = useState<number | undefined>(undefined);
+  const [currentRank, setCurrentRank] = useState<number | undefined>(undefined);
 
   // Fetch real prices from API
   useEffect(() => {
@@ -99,6 +105,24 @@ export default function PortfolioBuilder({ address }: Props) {
         
         if (data.portfolio?.allocations) {
           setAllocations(data.portfolio.allocations as Allocation[]);
+          setHasSavedPortfolio(true);
+          
+          // Fetch leaderboard to get current score and rank
+          try {
+            const leaderboardRes = await fetch('/api/leaderboard?limit=100');
+            if (leaderboardRes.ok) {
+              const leaderboard = await leaderboardRes.json();
+              const entry = leaderboard.find((r: { user: string; score: number; rank: number }) => 
+                r.user.toLowerCase() === address.toLowerCase()
+              );
+              if (entry) {
+                setCurrentScore(entry.score);
+                setCurrentRank(entry.rank);
+              }
+            }
+          } catch (e) {
+            console.error('Error fetching leaderboard:', e);
+          }
         }
       } catch (error) {
         console.error('Error loading portfolio:', error);
@@ -142,6 +166,36 @@ export default function PortfolioBuilder({ address }: Props) {
     );
   };
 
+  // Apply AI coach suggestion
+  const applySuggestion = (suggestion: Suggestion) => {
+    if (isLocked) return;
+    
+    setAllocations(prev => {
+      const existing = prev.find(a => a.symbol === suggestion.asset);
+      
+      if (suggestion.type === 'add' && !existing) {
+        // Add new asset
+        return [...prev, { symbol: suggestion.asset as AssetSymbol, percentage: suggestion.suggestedAllocation }];
+      }
+      
+      if (suggestion.type === 'remove' && existing) {
+        // Remove asset
+        return prev.filter(a => a.symbol !== suggestion.asset);
+      }
+      
+      // Update existing allocation
+      if (existing) {
+        return prev.map(a => 
+          a.symbol === suggestion.asset 
+            ? { ...a, percentage: suggestion.suggestedAllocation }
+            : a
+        );
+      }
+      
+      return prev;
+    });
+  };
+
   const canSave = !!address && isValid && !isLocked;
 
   const save = async () => {
@@ -162,6 +216,7 @@ export default function PortfolioBuilder({ address }: Props) {
         throw new Error(errorData.error || 'Failed to save');
       }
       setStatus({ type: 'success', message: 'Portfolio locked in! Good luck this week. 🎯' });
+      setHasSavedPortfolio(true);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Something went wrong. Please try again.';
       setStatus({ type: 'error', message });
@@ -444,6 +499,14 @@ export default function PortfolioBuilder({ address }: Props) {
         </div>
       )}
 
+      {/* AI Coach Panel */}
+      {!isLocked && allocations.length > 0 && (
+        <CoachPanel
+          allocations={allocations}
+          onApplySuggestion={applySuggestion}
+        />
+      )}
+
       {/* Portfolio Preview */}
       {allocations.length > 0 && (
         <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
@@ -569,6 +632,22 @@ export default function PortfolioBuilder({ address }: Props) {
             )}
             <span className="text-sm font-medium">{status.message}</span>
           </div>
+        </div>
+      )}
+
+      {/* Share Section */}
+      {hasSavedPortfolio && address && (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+          <div className="text-center">
+            <p className="text-sm font-medium text-white">Share your portfolio</p>
+            <p className="text-xs text-white/50">Challenge friends on Farcaster or X</p>
+          </div>
+          <ShareButtons
+            address={address}
+            allocations={allocations}
+            score={currentScore}
+            rank={currentRank}
+          />
         </div>
       )}
 
