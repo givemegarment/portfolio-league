@@ -1,8 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    // не валим прод-сборку из-за ESLint
     ignoreDuringBuilds: true,
   },
+  // Transpile OnchainKit to fix CSS @layer issue
+  transpilePackages: ['@coinbase/onchainkit'],
 };
+
 module.exports = nextConfig;

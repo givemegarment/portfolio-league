@@ -7,9 +7,9 @@ import { base } from 'wagmi/chains';
 import { coinbaseWallet } from 'wagmi/connectors';
 import { OnchainKitProvider } from '@coinbase/onchainkit';
 
-import '@coinbase/onchainkit/styles.css';
+// Note: OnchainKit styles are incompatible with Tailwind v3
+// We'll use custom styling instead
 
-// Wagmi config following OnchainKit docs
 const wagmiConfig = createConfig({
   chains: [base],
   connectors: [
