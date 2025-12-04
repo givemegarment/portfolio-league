@@ -1,62 +1,51 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 
 const ASSETS = [
   { 
     symbol: 'BTC', 
     name: 'Bitcoin', 
     color: '#F7931A',
-    icon: (
-      <svg viewBox="0 0 32 32" fill="currentColor" className="w-8 h-8">
-        <path d="M16 32C7.163 32 0 24.837 0 16S7.163 0 16 0s16 7.163 16 16-7.163 16-16 16zm7.189-17.98c.314-2.096-1.283-3.223-3.465-3.975l.708-2.84-1.728-.43-.69 2.765c-.454-.114-.92-.22-1.385-.326l.695-2.783L15.596 6l-.708 2.839c-.376-.086-.746-.17-1.104-.26l.002-.009-2.384-.595-.46 1.846s1.283.294 1.256.312c.7.175.826.638.805 1.006l-.806 3.235c.048.012.11.03.18.057l-.183-.045-1.13 4.532c-.086.212-.303.531-.793.41.018.025-1.256-.313-1.256-.313l-.858 1.978 2.25.561c.418.105.828.215 1.231.318l-.715 2.872 1.727.43.708-2.84c.472.127.93.245 1.378.357l-.706 2.828 1.728.43.715-2.866c2.948.558 5.164.333 6.097-2.333.752-2.146-.037-3.385-1.588-4.192 1.13-.26 1.98-1.003 2.207-2.538zm-3.95 5.538c-.533 2.147-4.148.986-5.32.695l.95-3.805c1.172.293 4.929.872 4.37 3.11zm.535-5.569c-.487 1.953-3.495.96-4.47.717l.86-3.45c.975.243 4.118.696 3.61 2.733z"/>
-      </svg>
-    )
+    logo: '/coins/btc.svg',
   },
   { 
     symbol: 'ETH', 
     name: 'Ethereum', 
     color: '#627EEA',
-    icon: (
-      <svg viewBox="0 0 32 32" fill="currentColor" className="w-8 h-8">
-        <path d="M16 32C7.163 32 0 24.837 0 16S7.163 0 16 0s16 7.163 16 16-7.163 16-16 16zm7.994-15.781L16.498 4 9 16.22l7.498 4.353 7.496-4.354zM24 17.616l-7.502 4.351L9 17.617l7.498 10.378L24 17.616z"/>
-      </svg>
-    )
+    logo: '/coins/eth.svg',
   },
   { 
     symbol: 'SOL', 
     name: 'Solana', 
     color: '#9945FF',
-    icon: (
-      <svg viewBox="0 0 32 32" fill="currentColor" className="w-8 h-8">
-        <path d="M16 32C7.163 32 0 24.837 0 16S7.163 0 16 0s16 7.163 16 16-7.163 16-16 16zM9.925 18.466l1.143-1.21a.47.47 0 01.342-.147h12.553c.216 0 .324.261.171.414l-1.143 1.21a.47.47 0 01-.342.147H10.096c-.216 0-.324-.261-.171-.414zm0-5.358l1.143-1.21a.47.47 0 01.342-.147h12.553c.216 0 .324.261.171.414l-1.143 1.21a.47.47 0 01-.342.147H10.096c-.216 0-.324-.261-.171-.414zm14.02 2.677l-1.143-1.21a.47.47 0 00-.342-.147H9.907c-.216 0-.324.261-.171.414l1.143 1.21a.47.47 0 00.342.147h12.553c.216 0 .324-.261.171-.414z"/>
-      </svg>
-    )
+    logo: '/coins/sol.svg',
   },
   { 
     symbol: 'USDC', 
     name: 'USD Coin', 
     color: '#2775CA',
-    icon: (
-      <svg viewBox="0 0 32 32" fill="currentColor" className="w-8 h-8">
-        <path d="M16 32C7.163 32 0 24.837 0 16S7.163 0 16 0s16 7.163 16 16-7.163 16-16 16zm-1.326-3.14v1.12h2.652v-1.12c3.265-.453 5.352-2.312 5.352-5.18 0-3.776-3.078-4.63-5.352-5.312v-4.82c1.479.282 2.466 1.12 2.652 2.312h2.838c-.186-2.687-2.466-4.54-5.49-4.914V9.84h-2.652v1.107c-3.078.374-5.352 2.227-5.352 5.007 0 3.589 2.838 4.63 5.352 5.312v5.007c-1.666-.374-2.652-1.307-2.838-2.593H8.998c.186 2.78 2.466 4.726 5.676 5.18zm0-13.52v4.54c-1.479-.467-2.466-1.12-2.466-2.312 0-1.214.987-1.948 2.466-2.228zm2.652 9.728v-4.727c1.666.467 2.652 1.12 2.652 2.406 0 1.307-1.066 2.04-2.652 2.32z"/>
-      </svg>
-    )
+    logo: '/coins/usdc.svg',
   },
 ] as const;
 
 type AssetSymbol = typeof ASSETS[number]['symbol'];
+type Allocation = { symbol: AssetSymbol; percentage: number };
 type Props = { address?: `0x${string}` };
 
 export default function PortfolioBuilder({ address }: Props) {
-  const [basket, setBasket] = useState<AssetSymbol[]>(['BTC', 'ETH', 'SOL']);
+  const [allocations, setAllocations] = useState<Allocation[]>([
+    { symbol: 'BTC', percentage: 50 },
+    { symbol: 'ETH', percentage: 30 },
+    { symbol: 'SOL', percentage: 20 },
+  ]);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [prices, setPrices] = useState<Record<string, number>>({});
 
   // Fetch prices on mount
   useEffect(() => {
-    // Simulated prices - in production, fetch from /api/oracle/prices
     setPrices({
       BTC: 97234.50,
       ETH: 3642.18,
@@ -65,25 +54,50 @@ export default function PortfolioBuilder({ address }: Props) {
     });
   }, []);
 
-  const toggleAsset = (symbol: AssetSymbol) => {
-    setBasket((prev) => {
-      if (prev.includes(symbol)) {
-        // Remove if already selected (but keep at least 1)
-        if (prev.length > 1) {
-          return prev.filter((s) => s !== symbol);
-        }
-        return prev;
-      } else {
-        // Add if under 3, or replace oldest if at 3
-        if (prev.length < 3) {
-          return [...prev, symbol];
-        }
-        return [...prev.slice(1), symbol];
-      }
-    });
+  const totalPercentage = allocations.reduce((sum, a) => sum + a.percentage, 0);
+  const isValid = totalPercentage === 100 && allocations.length > 0;
+
+  // Add an asset to portfolio
+  const addAsset = (symbol: AssetSymbol) => {
+    if (allocations.find(a => a.symbol === symbol)) return;
+    
+    // Add with 0% initially, user will adjust
+    setAllocations(prev => [...prev, { symbol, percentage: 0 }]);
   };
 
-  const canSave = !!address && basket.length === 3;
+  // Remove an asset from portfolio
+  const removeAsset = (symbol: AssetSymbol) => {
+    if (allocations.length <= 1) return; // Keep at least one
+    setAllocations(prev => prev.filter(a => a.symbol !== symbol));
+  };
+
+  // Update allocation percentage
+  const updateAllocation = useCallback((symbol: AssetSymbol, newPercentage: number) => {
+    const clampedPercentage = Math.max(0, Math.min(100, newPercentage));
+    
+    setAllocations(prev => 
+      prev.map(a => 
+        a.symbol === symbol ? { ...a, percentage: clampedPercentage } : a
+      )
+    );
+  }, []);
+
+  // Auto-balance to reach 100%
+  const autoBalance = () => {
+    if (allocations.length === 0) return;
+    
+    const equalShare = Math.floor(100 / allocations.length);
+    const remainder = 100 - (equalShare * allocations.length);
+    
+    setAllocations(prev => 
+      prev.map((a, i) => ({
+        ...a,
+        percentage: equalShare + (i === 0 ? remainder : 0)
+      }))
+    );
+  };
+
+  const canSave = !!address && isValid;
 
   const save = async () => {
     if (!canSave) return;
@@ -93,7 +107,10 @@ export default function PortfolioBuilder({ address }: Props) {
       const res = await fetch('/api/portfolio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, basket }),
+        body: JSON.stringify({ 
+          address, 
+          portfolio: allocations.map(a => ({ symbol: a.symbol, percentage: a.percentage }))
+        }),
       });
       if (!res.ok) throw new Error(await res.text());
       setStatus({ type: 'success', message: 'Portfolio saved! Good luck this week.' });
@@ -110,117 +127,283 @@ export default function PortfolioBuilder({ address }: Props) {
     return `$${price.toFixed(4)}`;
   };
 
+  const selectedSymbols = allocations.map(a => a.symbol);
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-white">Build Your Portfolio</h2>
-          <p className="text-sm text-white/50">Select 3 assets for this week's competition</p>
+          <p className="text-sm text-white/50">Allocate percentages to your selected assets</p>
         </div>
-        <div className="flex items-center gap-2 rounded-full bg-white/5 px-4 py-2">
-          <span className="text-sm text-white/50">Selected:</span>
-          <span className="font-mono font-bold text-base-blue">{basket.length}/3</span>
+        <div className="flex items-center gap-2">
+          <span 
+            className={`rounded-full px-4 py-2 text-sm font-mono font-bold ${
+              isValid 
+                ? 'bg-accent-emerald/20 text-accent-emerald border border-accent-emerald/30' 
+                : 'bg-accent-rose/20 text-accent-rose border border-accent-rose/30'
+            }`}
+          >
+            {totalPercentage}%
+          </span>
         </div>
       </div>
 
-      {/* Asset Grid */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {ASSETS.map((asset, idx) => {
-          const isSelected = basket.includes(asset.symbol);
-          const selectionIndex = basket.indexOf(asset.symbol);
-          
-          return (
-            <button
-              key={asset.symbol}
-              onClick={() => toggleAsset(asset.symbol)}
-              disabled={!address}
-              className={`
-                group relative overflow-hidden rounded-2xl border p-4 text-left transition-all duration-300
-                ${isSelected 
-                  ? 'border-base-blue/50 bg-base-blue/10' 
-                  : 'border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/5'
-                }
-                ${!address ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
-              `}
-              style={{
-                animationDelay: `${idx * 50}ms`,
-              }}
-            >
-              {/* Selection indicator */}
-              {isSelected && (
-                <div 
-                  className="absolute top-3 right-3 flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold text-white"
-                  style={{ backgroundColor: asset.color }}
-                >
-                  {selectionIndex + 1}
-                </div>
-              )}
-              
-              {/* Glow effect on selection */}
-              {isSelected && (
-                <div 
-                  className="absolute inset-0 opacity-20 blur-2xl"
-                  style={{ backgroundColor: asset.color }}
-                />
-              )}
-              
-              {/* Icon */}
-              <div 
-                className={`mb-3 transition-transform duration-300 ${isSelected ? 'scale-110' : 'group-hover:scale-105'}`}
-                style={{ color: asset.color }}
+      {/* Asset Selection */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium uppercase tracking-wider text-white/40">Select Assets</span>
+          <button
+            onClick={autoBalance}
+            className="text-xs text-base-blue hover:text-base-blue-light transition-colors"
+          >
+            Auto-balance
+          </button>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {ASSETS.map((asset) => {
+            const isSelected = selectedSymbols.includes(asset.symbol);
+            
+            return (
+              <button
+                key={asset.symbol}
+                onClick={() => isSelected ? removeAsset(asset.symbol) : addAsset(asset.symbol)}
+                disabled={!address}
+                className={`
+                  group relative overflow-hidden rounded-2xl border p-4 text-left transition-all duration-300
+                  ${isSelected 
+                    ? 'border-base-blue/50 bg-base-blue/10' 
+                    : 'border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/5'
+                  }
+                  ${!address ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
+                `}
               >
-                {asset.icon}
-              </div>
-              
-              {/* Info */}
-              <div className="space-y-1">
-                <div className="font-mono text-lg font-bold text-white">{asset.symbol}</div>
-                <div className="text-xs text-white/40">{asset.name}</div>
-              </div>
-              
-              {/* Price */}
-              {prices[asset.symbol] && (
-                <div className="mt-3 font-mono text-sm text-white/60">
-                  {formatPrice(prices[asset.symbol])}
+                {/* Selection indicator */}
+                {isSelected && (
+                  <div className="absolute top-2 right-2">
+                    <svg className="h-5 w-5 text-accent-emerald" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                )}
+                
+                {/* Glow effect on selection */}
+                {isSelected && (
+                  <div 
+                    className="absolute inset-0 opacity-20 blur-2xl"
+                    style={{ backgroundColor: asset.color }}
+                  />
+                )}
+                
+                {/* Logo */}
+                <div className={`mb-3 transition-transform duration-300 ${isSelected ? 'scale-110' : 'group-hover:scale-105'}`}>
+                  <Image
+                    src={asset.logo}
+                    alt={asset.name}
+                    width={40}
+                    height={40}
+                    className="rounded-full"
+                  />
                 </div>
-              )}
-            </button>
-          );
-        })}
+                
+                {/* Info */}
+                <div className="space-y-1">
+                  <div className="font-mono text-lg font-bold text-white">{asset.symbol}</div>
+                  <div className="text-xs text-white/40">{asset.name}</div>
+                </div>
+                
+                {/* Price */}
+                {prices[asset.symbol] && (
+                  <div className="mt-3 font-mono text-sm text-white/60">
+                    {formatPrice(prices[asset.symbol])}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Portfolio Preview */}
-      {basket.length > 0 && (
-        <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
-          <div className="mb-3 text-xs font-medium uppercase tracking-wider text-white/40">
-            Your Portfolio
+      {/* Allocation Sliders */}
+      {allocations.length > 0 && (
+        <div className="space-y-4">
+          <div className="text-xs font-medium uppercase tracking-wider text-white/40">
+            Set Allocation
           </div>
-          <div className="flex items-center gap-3">
-            {basket.map((symbol, idx) => {
-              const asset = ASSETS.find((a) => a.symbol === symbol)!;
+          
+          <div className="space-y-3">
+            {allocations.map((allocation) => {
+              const asset = ASSETS.find(a => a.symbol === allocation.symbol)!;
+              
               return (
                 <div
-                  key={`${symbol}-${idx}`}
-                  className="flex flex-1 items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3"
+                  key={allocation.symbol}
+                  className="rounded-xl border border-white/5 bg-white/[0.02] p-4"
                 >
-                  <div style={{ color: asset.color }}>{asset.icon}</div>
-                  <div>
-                    <div className="font-mono font-bold text-white">{asset.symbol}</div>
-                    <div className="text-xs text-white/40">33.33%</div>
+                  <div className="flex items-center gap-4">
+                    {/* Asset info */}
+                    <div className="flex items-center gap-3 w-28">
+                      <Image
+                        src={asset.logo}
+                        alt={asset.name}
+                        width={32}
+                        height={32}
+                        className="rounded-full"
+                      />
+                      <span className="font-mono font-bold text-white">{asset.symbol}</span>
+                    </div>
+                    
+                    {/* Slider */}
+                    <div className="flex-1">
+                      <div className="relative h-3 rounded-full bg-white/10 overflow-hidden">
+                        <div
+                          className="absolute left-0 top-0 h-full rounded-full transition-all duration-200"
+                          style={{
+                            width: `${allocation.percentage}%`,
+                            backgroundColor: asset.color,
+                          }}
+                        />
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          value={allocation.percentage}
+                          onChange={(e) => updateAllocation(allocation.symbol, parseInt(e.target.value))}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Controls */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => updateAllocation(allocation.symbol, allocation.percentage - 5)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                        </svg>
+                      </button>
+                      
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={allocation.percentage}
+                        onChange={(e) => updateAllocation(allocation.symbol, parseInt(e.target.value) || 0)}
+                        className="w-16 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-center font-mono text-sm text-white focus:border-base-blue focus:outline-none"
+                      />
+                      <span className="text-white/40">%</span>
+                      
+                      <button
+                        onClick={() => updateAllocation(allocation.symbol, allocation.percentage + 5)}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/5 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                      </button>
+                      
+                      {/* Remove button */}
+                      {allocations.length > 1 && (
+                        <button
+                          onClick={() => removeAsset(allocation.symbol)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-white/30 hover:bg-accent-rose/10 hover:text-accent-rose transition-colors"
+                        >
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
             })}
-            {/* Empty slots */}
-            {Array.from({ length: 3 - basket.length }).map((_, idx) => (
-              <div
-                key={`empty-${idx}`}
-                className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-white/10 bg-white/[0.01] p-3 py-6"
-              >
-                <span className="text-sm text-white/20">Select asset</span>
+          </div>
+          
+          {/* Total validation */}
+          {!isValid && (
+            <div className="flex items-center justify-between rounded-xl border border-accent-rose/20 bg-accent-rose/5 px-4 py-3">
+              <div className="flex items-center gap-2 text-accent-rose">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <span className="text-sm">
+                  {totalPercentage > 100 
+                    ? `Over by ${totalPercentage - 100}%` 
+                    : `${100 - totalPercentage}% unallocated`
+                  }
+                </span>
               </div>
-            ))}
+              <button
+                onClick={autoBalance}
+                className="text-sm font-medium text-accent-rose hover:underline"
+              >
+                Fix it
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Portfolio Preview - Visual Bar */}
+      {allocations.length > 0 && (
+        <div className="rounded-2xl border border-white/5 bg-white/[0.02] p-4">
+          <div className="mb-3 text-xs font-medium uppercase tracking-wider text-white/40">
+            Portfolio Breakdown
+          </div>
+          
+          {/* Stacked bar */}
+          <div className="h-8 rounded-full overflow-hidden flex">
+            {allocations
+              .filter(a => a.percentage > 0)
+              .map((allocation, idx) => {
+                const asset = ASSETS.find(a => a.symbol === allocation.symbol)!;
+                return (
+                  <div
+                    key={allocation.symbol}
+                    className="h-full flex items-center justify-center text-xs font-bold text-white transition-all duration-300"
+                    style={{
+                      width: `${allocation.percentage}%`,
+                      backgroundColor: asset.color,
+                      marginLeft: idx > 0 ? '2px' : 0,
+                    }}
+                  >
+                    {allocation.percentage >= 15 && (
+                      <span>{allocation.symbol}</span>
+                    )}
+                  </div>
+                );
+              })}
+            {totalPercentage < 100 && (
+              <div
+                className="h-full flex items-center justify-center text-xs text-white/30 bg-white/5"
+                style={{ width: `${100 - totalPercentage}%`, marginLeft: '2px' }}
+              >
+                {100 - totalPercentage >= 10 && 'Unallocated'}
+              </div>
+            )}
+          </div>
+          
+          {/* Legend */}
+          <div className="mt-4 flex flex-wrap gap-4">
+            {allocations.map((allocation) => {
+              const asset = ASSETS.find(a => a.symbol === allocation.symbol)!;
+              return (
+                <div key={allocation.symbol} className="flex items-center gap-2">
+                  <div
+                    className="h-3 w-3 rounded-full"
+                    style={{ backgroundColor: asset.color }}
+                  />
+                  <span className="text-sm text-white/60">
+                    {asset.symbol}: <span className="font-mono font-bold text-white">{allocation.percentage}%</span>
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -238,6 +421,13 @@ export default function PortfolioBuilder({ address }: Props) {
             </svg>
             Connect Wallet to Save
           </span>
+        ) : !isValid ? (
+          <span className="flex items-center justify-center gap-2">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            Allocation Must Equal 100%
+          </span>
         ) : saving ? (
           <span className="flex items-center justify-center gap-2">
             <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -251,7 +441,7 @@ export default function PortfolioBuilder({ address }: Props) {
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
-            Lock In My Picks
+            Lock In My Portfolio
           </span>
         )}
       </button>
@@ -282,7 +472,7 @@ export default function PortfolioBuilder({ address }: Props) {
 
       {/* Info Footer */}
       <p className="text-center text-xs text-white/30">
-        Picks are tied to your wallet address. You can update until the gameweek locks.
+        Allocations are tied to your wallet address. You can update until the gameweek locks.
       </p>
     </div>
   );

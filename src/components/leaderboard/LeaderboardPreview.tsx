@@ -1,8 +1,27 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 
-type Row = { rank: number; user: string; score: number; basket: string };
+type AllocationItem = {
+  symbol: string;
+  percentage: number;
+};
+
+type Row = { 
+  rank: number; 
+  user: string; 
+  score: number; 
+  basket: string;
+  allocations?: AllocationItem[];
+};
+
+const ASSET_COLORS: Record<string, string> = {
+  BTC: '#F7931A',
+  ETH: '#627EEA',
+  SOL: '#9945FF',
+  USDC: '#2775CA',
+};
 
 // Generate a consistent color from an address
 function addressToColor(address: string): string {
@@ -26,26 +45,30 @@ function shortenAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
-// Asset badge component
-function AssetBadge({ symbol }: { symbol: string }) {
-  const colors: Record<string, string> = {
-    BTC: '#F7931A',
-    ETH: '#627EEA',
-    SOL: '#9945FF',
-    USDC: '#2775CA',
-  };
+// Allocation badge component with percentage
+function AllocationBadge({ symbol, percentage }: { symbol: string; percentage?: number }) {
+  const color = ASSET_COLORS[symbol] || '#666';
   
   return (
-    <span 
-      className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-mono font-medium"
+    <div 
+      className="flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-mono"
       style={{ 
-        backgroundColor: `${colors[symbol] || '#666'}15`,
-        color: colors[symbol] || '#666',
-        border: `1px solid ${colors[symbol] || '#666'}30`
+        backgroundColor: `${color}15`,
+        border: `1px solid ${color}30`
       }}
     >
-      {symbol}
-    </span>
+      <Image
+        src={`/coins/${symbol.toLowerCase()}.svg`}
+        alt={symbol}
+        width={14}
+        height={14}
+        className="rounded-full"
+      />
+      <span style={{ color }}>{symbol}</span>
+      {percentage !== undefined && (
+        <span className="text-white/40">{percentage}%</span>
+      )}
+    </div>
   );
 }
 
@@ -112,9 +135,8 @@ function SkeletonRow() {
       </td>
       <td className="px-4 py-4">
         <div className="flex gap-1">
-          <div className="h-5 w-12 rounded shimmer" />
-          <div className="h-5 w-12 rounded shimmer" />
-          <div className="h-5 w-12 rounded shimmer" />
+          <div className="h-5 w-16 rounded shimmer" />
+          <div className="h-5 w-16 rounded shimmer" />
         </div>
       </td>
     </tr>
@@ -207,8 +229,22 @@ export default function LeaderboardPreview() {
             )}
             
             {rows?.map((r, idx) => {
-              let assets: string[] = [];
-              try { assets = JSON.parse(r.basket); } catch {}
+              // Use allocations if available, otherwise parse basket
+              let allocations: AllocationItem[] = r.allocations || [];
+              
+              if (!r.allocations) {
+                try { 
+                  const parsed = JSON.parse(r.basket);
+                  if (Array.isArray(parsed)) {
+                    if (typeof parsed[0] === 'string') {
+                      // Legacy format
+                      allocations = parsed.map((symbol: string) => ({ symbol, percentage: 0 }));
+                    } else if (parsed[0]?.symbol) {
+                      allocations = parsed;
+                    }
+                  }
+                } catch {}
+              }
               
               const isTopThree = r.rank <= 3;
               const scoreValue = typeof r.score === 'number' ? r.score : 0;
@@ -248,9 +284,13 @@ export default function LeaderboardPreview() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1.5">
-                      {assets.map((a, i) => (
-                        <AssetBadge key={`${a}-${i}`} symbol={a} />
+                    <div className="flex flex-wrap gap-1">
+                      {allocations.map((a, i) => (
+                        <AllocationBadge 
+                          key={`${a.symbol}-${i}`} 
+                          symbol={a.symbol} 
+                          percentage={a.percentage > 0 ? a.percentage : undefined}
+                        />
                       ))}
                     </div>
                   </td>
