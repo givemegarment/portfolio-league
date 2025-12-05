@@ -210,7 +210,7 @@ export default function AchievementBadges({ achievements, showAll = false }: Pro
       });
     }
   } else {
-    for (const achievement of earnedByType.values()) {
+    for (const achievement of Array.from(earnedByType.values())) {
       displayItems.push({ achievement, earned: true });
     }
   }
