@@ -16,32 +16,51 @@ function generateFrameHtml({
   buttons,
   postUrl,
   title = 'Portfolio League',
+  description = 'Pick. Compete. Win. Select 3 crypto assets each week and compete against other traders.',
 }: {
   imageUrl: string;
   buttons: FrameButton[];
   postUrl?: string;
   title?: string;
+  description?: string;
 }): string {
   const buttonTags = buttons
     .map((btn, idx) => {
       const index = idx + 1;
       let tags = `<meta property="fc:frame:button:${index}" content="${btn.label}" />`;
       if (btn.action) {
-        tags += `\n<meta property="fc:frame:button:${index}:action" content="${btn.action}" />`;
+        tags += `\n  <meta property="fc:frame:button:${index}:action" content="${btn.action}" />`;
       }
       if (btn.target) {
-        tags += `\n<meta property="fc:frame:button:${index}:target" content="${btn.target}" />`;
+        tags += `\n  <meta property="fc:frame:button:${index}:target" content="${btn.target}" />`;
       }
       return tags;
     })
-    .join('\n');
+    .join('\n  ');
 
   return `<!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8" />
   <title>${title}</title>
+  
+  <!-- Open Graph Meta Tags for Twitter/Social -->
   <meta property="og:title" content="${title}" />
+  <meta property="og:description" content="${description}" />
   <meta property="og:image" content="${imageUrl}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="${BASE_URL}" />
+  
+  <!-- Twitter Card Meta Tags -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${title}" />
+  <meta name="twitter:description" content="${description}" />
+  <meta name="twitter:image" content="${imageUrl}" />
+  
+  <!-- Farcaster Frame Meta Tags -->
   <meta property="fc:frame" content="vNext" />
   <meta property="fc:frame:image" content="${imageUrl}" />
   <meta property="fc:frame:image:aspect_ratio" content="1.91:1" />
@@ -50,7 +69,8 @@ function generateFrameHtml({
 </head>
 <body>
   <h1>${title}</h1>
-  <img src="${imageUrl}" alt="${title}" />
+  <p>${description}</p>
+  <img src="${imageUrl}" alt="${title}" style="max-width: 100%;" />
 </body>
 </html>`;
 }
@@ -90,6 +110,7 @@ export async function GET(req: NextRequest) {
   const allocationsParam = searchParams.get('allocations');
   const scoreParam = searchParams.get('score');
   const rankParam = searchParams.get('rank');
+  const refCode = searchParams.get('ref');
 
   if (allocationsParam) {
     try {
@@ -156,21 +177,26 @@ export async function GET(req: NextRequest) {
 
   const imageUrl = `${BASE_URL}/api/og/portfolio?${ogParams.toString()}`;
 
-  // Generate frame HTML
+  // Generate frame HTML with referral code in CTAs
   const buttons: FrameButton[] = [];
+  const refParam = refCode ? `ref=${refCode}` : '';
   
   if (allocations.length > 0) {
+    const challengeUrl = refCode 
+      ? `${BASE_URL}?challenge=${address}&${refParam}`
+      : `${BASE_URL}?challenge=${address}`;
     buttons.push({ 
       label: '👊 Challenge Me!', 
       action: 'link', 
-      target: `${BASE_URL}?challenge=${address}` 
+      target: challengeUrl
     });
   }
   
+  const joinUrl = refCode ? `${BASE_URL}?${refParam}` : BASE_URL;
   buttons.push({ 
     label: '🎯 Join Competition', 
     action: 'link', 
-    target: BASE_URL 
+    target: joinUrl
   });
   
   buttons.push({ 

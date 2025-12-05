@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 type Props = {
   address?: string;
@@ -14,6 +14,26 @@ const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://portfolio-league.v
 export default function ShareButtons({ address, allocations, score, rank }: Props) {
   const [copied, setCopied] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+
+  // Fetch user's referral code when component mounts
+  useEffect(() => {
+    if (!address) return;
+
+    const fetchReferralCode = async () => {
+      try {
+        const response = await fetch(`/api/referral?address=${address}`);
+        if (response.ok) {
+          const data = await response.json();
+          setReferralCode(data.code);
+        }
+      } catch (err) {
+        console.error('Failed to fetch referral code:', err);
+      }
+    };
+
+    fetchReferralCode();
+  }, [address]);
 
   if (!address || !allocations || allocations.length === 0) {
     return null;
@@ -25,6 +45,7 @@ export default function ShareButtons({ address, allocations, score, rank }: Prop
   frameParams.set('allocations', JSON.stringify(allocations));
   if (score !== undefined) frameParams.set('score', score.toString());
   if (rank !== undefined) frameParams.set('rank', rank.toString());
+  if (referralCode) frameParams.set('ref', referralCode);
   const frameUrl = `${BASE_URL}/api/frame/portfolio?${frameParams.toString()}`;
   
   const ogParams = new URLSearchParams();
@@ -34,12 +55,15 @@ export default function ShareButtons({ address, allocations, score, rank }: Prop
   if (rank !== undefined) ogParams.set('rank', rank.toString());
   const imageUrl = `${BASE_URL}/api/og/portfolio?${ogParams.toString()}`;
 
+  // Direct site URL with referral code for Twitter (Twitter uses og:image from this URL)
+  const siteUrlWithRef = referralCode ? `${BASE_URL}?ref=${referralCode}` : BASE_URL;
+
   // Share text
   const shareText = score !== undefined
     ? `My portfolio is ${score >= 0 ? '+' : ''}${score.toFixed(2)}% this week on Portfolio League! 🎯 Think you can beat it?`
     : `Check out my Portfolio League picks! 🎯 Think you can beat it?`;
 
-  // Twitter/X share URL
+  // Twitter/X share URL - use frame URL for better preview
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(frameUrl)}`;
 
   // Warpcast (Farcaster) share URL

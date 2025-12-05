@@ -3,6 +3,9 @@ import { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 
+// Farcaster Frame requires exact 1.91:1 aspect ratio
+export const contentType = 'image/png';
+
 // Asset colors for the portfolio visualization
 const ASSET_COLORS: Record<string, string> = {
   BTC: '#F7931A',
@@ -338,6 +341,10 @@ export async function GET(req: NextRequest) {
     {
       width: 1200,
       height: 630,
+      headers: {
+        'Cache-Control': 'public, max-age=60, s-maxage=60, stale-while-revalidate=300',
+        'Content-Type': 'image/png',
+      },
     }
   );
 }

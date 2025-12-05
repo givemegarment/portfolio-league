@@ -38,12 +38,16 @@ type Allocation = { symbol: AssetSymbol; percentage: number };
 type PriceData = { price: number; change24h: number };
 type Props = { address?: `0x${string}` };
 
+// Default allocations for new users
+const DEFAULT_ALLOCATIONS: Allocation[] = [
+  { symbol: 'BTC', percentage: 50 },
+  { symbol: 'ETH', percentage: 30 },
+  { symbol: 'SOL', percentage: 20 },
+];
+
 export default function PortfolioBuilder({ address }: Props) {
-  const [allocations, setAllocations] = useState<Allocation[]>([
-    { symbol: 'BTC', percentage: 50 },
-    { symbol: 'ETH', percentage: 30 },
-    { symbol: 'SOL', percentage: 20 },
-  ]);
+  // Start with empty allocations - will load from server or use defaults
+  const [allocations, setAllocations] = useState<Allocation[]>([]);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [prices, setPrices] = useState<Record<string, PriceData>>({});
@@ -56,6 +60,8 @@ export default function PortfolioBuilder({ address }: Props) {
   const [savedTimestamp, setSavedTimestamp] = useState<number | null>(null);
   const [entryPrices, setEntryPrices] = useState<Record<string, number>>({});
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [portfolioLoading, setPortfolioLoading] = useState(true);
+  const [portfolioInitialized, setPortfolioInitialized] = useState(false);
 
   // Fetch real prices from API
   useEffect(() => {
@@ -93,12 +99,31 @@ export default function PortfolioBuilder({ address }: Props) {
 
   // Load existing portfolio if user is connected
   useEffect(() => {
-    if (!address) return;
+    // If no address, set defaults and mark as initialized
+    if (!address) {
+      if (!portfolioInitialized) {
+        setAllocations(DEFAULT_ALLOCATIONS);
+        setPortfolioInitialized(true);
+        setPortfolioLoading(false);
+      }
+      return;
+    }
 
     const loadPortfolio = async () => {
+      setPortfolioLoading(true);
+      setLoadError(null);
+      
       try {
         const response = await fetch(`/api/portfolio?address=${address}`);
-        if (!response.ok) return;
+        if (!response.ok) {
+          // Server error - use defaults
+          if (!portfolioInitialized) {
+            setAllocations(DEFAULT_ALLOCATIONS);
+          }
+          setPortfolioInitialized(true);
+          setPortfolioLoading(false);
+          return;
+        }
         
         const data = await response.json();
         
@@ -110,7 +135,8 @@ export default function PortfolioBuilder({ address }: Props) {
           setIsLocked(true);
         }
         
-        if (data.portfolio?.allocations) {
+        if (data.portfolio?.allocations && data.portfolio.allocations.length > 0) {
+          // User has a saved portfolio - use it
           setAllocations(data.portfolio.allocations as Allocation[]);
           setHasSavedPortfolio(true);
           if (data.portfolio.timestamp) {
@@ -136,14 +162,29 @@ export default function PortfolioBuilder({ address }: Props) {
           } catch (e) {
             console.error('Error fetching leaderboard:', e);
           }
+        } else {
+          // No saved portfolio - use defaults (only if not already initialized)
+          if (!portfolioInitialized) {
+            setAllocations(DEFAULT_ALLOCATIONS);
+          }
         }
+        
+        setPortfolioInitialized(true);
       } catch (error) {
         console.error('Error loading portfolio:', error);
+        setLoadError('Failed to load portfolio. Please refresh the page.');
+        // On error, use defaults if not initialized
+        if (!portfolioInitialized) {
+          setAllocations(DEFAULT_ALLOCATIONS);
+          setPortfolioInitialized(true);
+        }
+      } finally {
+        setPortfolioLoading(false);
       }
     };
 
     loadPortfolio();
-  }, [address]);
+  }, [address, portfolioInitialized]);
 
   const totalPercentage = allocations.reduce((sum, a) => sum + a.percentage, 0);
   const isValid = totalPercentage === 100 && allocations.length > 0;
@@ -228,8 +269,41 @@ export default function PortfolioBuilder({ address }: Props) {
         const errorData = await res.json();
         throw new Error(errorData.error || 'Failed to save');
       }
+      
+      const responseData = await res.json();
+      
       setStatus({ type: 'success', message: 'Portfolio locked in! Good luck this week. 🎯' });
+      
+      // Track referral if this is first portfolio save and user was referred
+      if (!hasSavedPortfolio && typeof window !== 'undefined') {
+        const refCode = localStorage.getItem('portfolio_league_ref');
+        if (refCode && address) {
+          try {
+            await fetch('/api/referral/track', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                referralCode: refCode,
+                newUserAddress: address,
+              }),
+            });
+            // Clear the ref code after tracking
+            localStorage.removeItem('portfolio_league_ref');
+          } catch (refError) {
+            console.error('Error tracking referral:', refError);
+          }
+        }
+      }
+      
       setHasSavedPortfolio(true);
+      
+      // Update entry prices and timestamp from server response
+      if (responseData.portfolio) {
+        setSavedTimestamp(responseData.portfolio.timestamp);
+        if (responseData.portfolio.entryPrices) {
+          setEntryPrices(responseData.portfolio.entryPrices);
+        }
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Something went wrong. Please try again.';
       setStatus({ type: 'error', message });
@@ -250,6 +324,27 @@ export default function PortfolioBuilder({ address }: Props) {
   };
 
   const selectedSymbols = allocations.map(a => a.symbol);
+
+  // Show loading state while fetching portfolio
+  if (portfolioLoading && address) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-white">Build Your Portfolio</h2>
+            <p className="text-sm text-white/50">Loading your saved portfolio...</p>
+          </div>
+        </div>
+        <div className="flex flex-col items-center justify-center py-16">
+          <svg className="h-8 w-8 animate-spin text-base-blue" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <p className="mt-4 text-sm text-white/50">Fetching your portfolio data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

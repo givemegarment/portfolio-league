@@ -78,6 +78,26 @@ export default function HomeClient() {
   });
   const { address, isConnected } = useAccount();
 
+  // Store referral code from URL parameter
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
+    
+    if (refCode) {
+      // Store in localStorage for later tracking
+      localStorage.setItem('portfolio_league_ref', refCode);
+      
+      // Clean URL without losing other params
+      urlParams.delete('ref');
+      const newUrl = urlParams.toString() 
+        ? `${window.location.pathname}?${urlParams.toString()}`
+        : window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, []);
+
   useEffect(() => {
     setMounted(true);
     
