@@ -183,3 +183,4 @@ export default function ShareButtons({ address, allocations, score, rank }: Prop
   );
 }
 
+
