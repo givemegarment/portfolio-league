@@ -83,6 +83,9 @@ export async function GET(req: NextRequest) {
   let score: number | null = null;
   let rank: number | null = null;
 
+  // Get current week info
+  const { season, week } = getCurrentWeek();
+
   // First try to get allocations from URL params (passed when sharing)
   const allocationsParam = searchParams.get('allocations');
   const scoreParam = searchParams.get('score');
@@ -101,7 +104,6 @@ export async function GET(req: NextRequest) {
   // If no allocations from URL, try Redis as fallback
   if (allocations.length === 0) {
     try {
-      const { season, week } = getCurrentWeek();
       const weekKey = getWeekKey(season, week);
       const portfolioJson = await redis.hget<string>(weekKey, address);
 
