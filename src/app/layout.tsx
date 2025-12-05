@@ -13,14 +13,16 @@ export const metadata: Metadata = {
   openGraph: { 
     title: 'Portfolio League', 
     description: 'Pick 3 assets. Compete weekly. Win prizes on Base.', 
-    images: ['/og.svg'], 
-    type: 'website' 
+    images: [{ url: '/api/og/home', width: 1200, height: 630, alt: 'Portfolio League' }], 
+    type: 'website',
+    siteName: 'Portfolio League',
   },
   twitter: { 
     card: 'summary_large_image', 
     title: 'Portfolio League', 
     description: 'Pick 3 assets. Compete weekly. Win prizes on Base.', 
-    images: ['/og.svg'] 
+    images: ['/api/og/home'],
+    site: '@portfolioleague',
   },
   icons: { icon: '/favicon.svg', apple: '/apple-touch-icon.png' },
   manifest: '/site.webmanifest',
