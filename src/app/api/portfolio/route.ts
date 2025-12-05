@@ -138,9 +138,17 @@ export async function POST(req: Request) {
     timestamp: Date.now(),
   };
 
-  await redis.hset(weekKey, {
-    [body.address]: JSON.stringify(portfolioData),
-  });
+  try {
+    await redis.hset(weekKey, {
+      [body.address]: JSON.stringify(portfolioData),
+    });
+  } catch (error) {
+    console.error('Redis error saving portfolio:', error);
+    return NextResponse.json(
+      { error: 'Failed to save portfolio. Please try again later.' },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.json({ 
     ok: true, 
@@ -165,38 +173,45 @@ export async function GET(req: Request) {
   const week = weekParam ? Number(weekParam) : currentWeek.week;
 
   const weekKey = getWeekKey(season, week);
-  const value = await redis.hget<string>(weekKey, address);
-
+  
   let portfolio: StoredPortfolio | null = null;
   let basket: string[] | null = null;
+  let redisError = false;
 
-  if (value) {
-    try {
-      const parsed = JSON.parse(value);
-      
-      // Handle new format with entryPrices
-      if (parsed.allocations && Array.isArray(parsed.allocations)) {
-        portfolio = parsed as StoredPortfolio;
-        basket = parsed.allocations.map((a: AllocationItem) => a.symbol);
-      }
-      // Handle legacy format (just array of symbols)
-      else if (Array.isArray(parsed)) {
-        basket = parsed as string[];
-        const equalWeight = Math.floor(100 / basket.length);
-        const remainder = 100 - (equalWeight * basket.length);
+  try {
+    const value = await redis.hget<string>(weekKey, address);
+
+    if (value) {
+      try {
+        const parsed = JSON.parse(value);
         
-        portfolio = {
-          allocations: basket.map((symbol, idx) => ({
-            symbol,
-            percentage: equalWeight + (idx === 0 ? remainder : 0),
-          })),
-          entryPrices: {}, // No entry prices for legacy data
-          timestamp: 0,
-        };
+        // Handle new format with entryPrices
+        if (parsed.allocations && Array.isArray(parsed.allocations)) {
+          portfolio = parsed as StoredPortfolio;
+          basket = parsed.allocations.map((a: AllocationItem) => a.symbol);
+        }
+        // Handle legacy format (just array of symbols)
+        else if (Array.isArray(parsed)) {
+          basket = parsed as string[];
+          const equalWeight = Math.floor(100 / basket.length);
+          const remainder = 100 - (equalWeight * basket.length);
+          
+          portfolio = {
+            allocations: basket.map((symbol, idx) => ({
+              symbol,
+              percentage: equalWeight + (idx === 0 ? remainder : 0),
+            })),
+            entryPrices: {}, // No entry prices for legacy data
+            timestamp: 0,
+          };
+        }
+      } catch {
+        // Invalid JSON, ignore
       }
-    } catch {
-      // Invalid JSON, ignore
     }
+  } catch (error) {
+    console.error('Redis error fetching portfolio:', error);
+    redisError = true;
   }
 
   return NextResponse.json({ 
@@ -207,5 +222,6 @@ export async function GET(req: Request) {
     week,
     isLocked: isLocked(),
     weekInfo: currentWeek,
+    redisError,
   });
 }

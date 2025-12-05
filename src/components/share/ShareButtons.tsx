@@ -19,8 +19,13 @@ export default function ShareButtons({ address, allocations, score, rank }: Prop
     return null;
   }
 
-  // Build share URLs
-  const frameUrl = `${BASE_URL}/api/frame/portfolio?address=${address}`;
+  // Build share URLs - include allocations in URL so frame doesn't depend on Redis
+  const frameParams = new URLSearchParams();
+  frameParams.set('address', address);
+  frameParams.set('allocations', JSON.stringify(allocations));
+  if (score !== undefined) frameParams.set('score', score.toString());
+  if (rank !== undefined) frameParams.set('rank', rank.toString());
+  const frameUrl = `${BASE_URL}/api/frame/portfolio?${frameParams.toString()}`;
   
   const ogParams = new URLSearchParams();
   ogParams.set('address', address);

@@ -53,6 +53,9 @@ export default function PortfolioBuilder({ address }: Props) {
   const [hasSavedPortfolio, setHasSavedPortfolio] = useState(false);
   const [currentScore, setCurrentScore] = useState<number | undefined>(undefined);
   const [currentRank, setCurrentRank] = useState<number | undefined>(undefined);
+  const [savedTimestamp, setSavedTimestamp] = useState<number | null>(null);
+  const [entryPrices, setEntryPrices] = useState<Record<string, number>>({});
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Fetch real prices from API
   useEffect(() => {
@@ -99,6 +102,10 @@ export default function PortfolioBuilder({ address }: Props) {
         
         const data = await response.json();
         
+        if (data.redisError) {
+          setLoadError('Unable to load saved portfolio. Storage service may be temporarily unavailable.');
+        }
+        
         if (data.isLocked) {
           setIsLocked(true);
         }
@@ -106,6 +113,12 @@ export default function PortfolioBuilder({ address }: Props) {
         if (data.portfolio?.allocations) {
           setAllocations(data.portfolio.allocations as Allocation[]);
           setHasSavedPortfolio(true);
+          if (data.portfolio.timestamp) {
+            setSavedTimestamp(data.portfolio.timestamp);
+          }
+          if (data.portfolio.entryPrices) {
+            setEntryPrices(data.portfolio.entryPrices);
+          }
           
           // Fetch leaderboard to get current score and rank
           try {
@@ -276,11 +289,97 @@ export default function PortfolioBuilder({ address }: Props) {
         </div>
       )}
 
+      {/* My Portfolio Status Card */}
+      {hasSavedPortfolio && address && (
+        <div className="rounded-2xl border border-accent-emerald/20 bg-accent-emerald/5 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent-emerald/20">
+                <svg className="h-4 w-4 text-accent-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-white">Your Portfolio is Saved</h3>
+                {savedTimestamp && (
+                  <p className="text-xs text-white/40">
+                    Submitted {new Date(savedTimestamp).toLocaleDateString()} at {new Date(savedTimestamp).toLocaleTimeString()}
+                  </p>
+                )}
+              </div>
+            </div>
+            {currentRank && (
+              <div className="flex items-center gap-2 rounded-full bg-accent-amber/10 px-3 py-1.5 border border-accent-amber/20">
+                <span className="text-xs text-white/60">Rank</span>
+                <span className="text-sm font-bold text-accent-amber">#{currentRank}</span>
+              </div>
+            )}
+          </div>
+          
+          {/* Performance */}
+          {currentScore !== undefined && (
+            <div className="flex items-center gap-4 mb-4 p-3 rounded-xl bg-white/5">
+              <div>
+                <span className="text-xs text-white/40 block">Current Return</span>
+                <span className={`text-xl font-bold font-mono ${currentScore >= 0 ? 'text-accent-emerald' : 'text-accent-rose'}`}>
+                  {currentScore >= 0 ? '+' : ''}{currentScore.toFixed(2)}%
+                </span>
+              </div>
+              {Object.keys(entryPrices).length > 0 && (
+                <div className="flex-1 flex flex-wrap gap-2 justify-end">
+                  {allocations.filter(a => a.percentage > 0).map(a => (
+                    <div key={a.symbol} className="text-xs text-white/50">
+                      <span className="font-mono">{a.symbol}</span>
+                      <span className="text-white/30 ml-1">
+                        @${entryPrices[a.symbol]?.toLocaleString() || '—'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Quick allocation summary */}
+          <div className="flex items-center gap-2">
+            {allocations.filter(a => a.percentage > 0).map((a) => {
+              const asset = ASSETS.find(asset => asset.symbol === a.symbol);
+              return (
+                <div
+                  key={a.symbol}
+                  className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs"
+                  style={{ backgroundColor: `${asset?.color}20` }}
+                >
+                  <div
+                    className="h-2 w-2 rounded-full"
+                    style={{ backgroundColor: asset?.color }}
+                  />
+                  <span className="font-mono text-white">{a.symbol}</span>
+                  <span className="text-white/50">{a.percentage}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Price Update Indicator */}
       {lastPriceUpdate && (
         <div className="flex items-center justify-end gap-2 text-xs text-white/30">
           <div className="h-1.5 w-1.5 rounded-full bg-accent-emerald animate-pulse" />
           <span>Live prices • Updated {new Date(lastPriceUpdate).toLocaleTimeString()}</span>
+        </div>
+      )}
+
+      {/* Load Error Warning */}
+      {loadError && (
+        <div className="rounded-xl border border-accent-rose/20 bg-accent-rose/10 px-4 py-3">
+          <div className="flex items-center gap-2 text-accent-rose">
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span className="text-sm font-medium">{loadError}</span>
+          </div>
         </div>
       )}
 

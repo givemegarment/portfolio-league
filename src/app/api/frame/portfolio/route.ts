@@ -79,44 +79,61 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // Fetch portfolio for this address
-  const { season, week } = getCurrentWeek();
-  const weekKey = getWeekKey(season, week);
-  const portfolioJson = await redis.hget<string>(weekKey, address);
-
   let allocations: { symbol: string; percentage: number }[] = [];
   let score: number | null = null;
   let rank: number | null = null;
 
-  if (portfolioJson) {
+  // First try to get allocations from URL params (passed when sharing)
+  const allocationsParam = searchParams.get('allocations');
+  const scoreParam = searchParams.get('score');
+  const rankParam = searchParams.get('rank');
+
+  if (allocationsParam) {
     try {
-      const portfolio: StoredPortfolio = JSON.parse(portfolioJson);
-      allocations = portfolio.allocations;
+      allocations = JSON.parse(decodeURIComponent(allocationsParam));
+      if (scoreParam) score = parseFloat(scoreParam);
+      if (rankParam) rank = parseInt(rankParam);
+    } catch (e) {
+      console.error('Error parsing URL allocations:', e);
+    }
+  }
 
-      // Calculate current score if we have entry prices
-      if (portfolio.entryPrices && Object.keys(portfolio.entryPrices).length > 0) {
-        // Fetch current prices
-        const pricesRes = await fetch(`${BASE_URL}/api/prices`);
-        if (pricesRes.ok) {
-          const pricesData = await pricesRes.json();
-          const result = calculateScore(portfolio, pricesData.prices);
-          score = result.totalScore;
+  // If no allocations from URL, try Redis as fallback
+  if (allocations.length === 0) {
+    try {
+      const { season, week } = getCurrentWeek();
+      const weekKey = getWeekKey(season, week);
+      const portfolioJson = await redis.hget<string>(weekKey, address);
+
+      if (portfolioJson) {
+        const portfolio: StoredPortfolio = JSON.parse(portfolioJson);
+        allocations = portfolio.allocations;
+
+        // Calculate current score if we have entry prices
+        if (portfolio.entryPrices && Object.keys(portfolio.entryPrices).length > 0) {
+          // Fetch current prices
+          const pricesRes = await fetch(`${BASE_URL}/api/prices`);
+          if (pricesRes.ok) {
+            const pricesData = await pricesRes.json();
+            const result = calculateScore(portfolio, pricesData.prices);
+            score = result.totalScore;
+          }
         }
-      }
 
-      // Get rank from leaderboard
-      const leaderboardRes = await fetch(`${BASE_URL}/api/leaderboard?limit=100`);
-      if (leaderboardRes.ok) {
-        const leaderboard = await leaderboardRes.json();
-        const entry = leaderboard.find((r: { user: string }) => 
-          r.user.toLowerCase() === address.toLowerCase()
-        );
-        if (entry) {
-          rank = entry.rank;
+        // Get rank from leaderboard
+        const leaderboardRes = await fetch(`${BASE_URL}/api/leaderboard?limit=100`);
+        if (leaderboardRes.ok) {
+          const leaderboard = await leaderboardRes.json();
+          const entry = leaderboard.find((r: { user: string }) => 
+            r.user.toLowerCase() === address.toLowerCase()
+          );
+          if (entry) {
+            rank = entry.rank;
+          }
         }
       }
     } catch (e) {
-      console.error('Error parsing portfolio:', e);
+      console.error('Error fetching portfolio from Redis:', e);
     }
   }
 
