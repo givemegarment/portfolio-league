@@ -1,13 +1,6 @@
 import { NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
-
-// CoinGecko ID mapping
-const COINGECKO_IDS: Record<string, string> = {
-  BTC: 'bitcoin',
-  ETH: 'ethereum',
-  SOL: 'solana',
-  USDC: 'usd-coin',
-};
+import { SUPPORTED_ASSETS, getCoingeckoIdsString } from '@/lib/assets';
 
 const CACHE_KEY = 'prices:current';
 const CACHE_TTL_SECONDS = 60; // Cache for 60 seconds to avoid rate limits
@@ -31,7 +24,7 @@ type PricesResponse = {
 };
 
 async function fetchFromCoinGecko(): Promise<Record<string, PriceData>> {
-  const ids = Object.values(COINGECKO_IDS).join(',');
+  const ids = getCoingeckoIdsString();
   const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`;
 
   const response = await fetch(url, {
@@ -48,13 +41,13 @@ async function fetchFromCoinGecko(): Promise<Record<string, PriceData>> {
 
   const data: CoinGeckoResponse = await response.json();
 
-  // Transform CoinGecko response to our format
+  // Transform CoinGecko response to our format using asset definitions
   const prices: Record<string, PriceData> = {};
 
-  for (const [symbol, geckoId] of Object.entries(COINGECKO_IDS)) {
-    const coinData = data[geckoId];
+  for (const asset of SUPPORTED_ASSETS) {
+    const coinData = data[asset.coingeckoId];
     if (coinData) {
-      prices[symbol] = {
+      prices[asset.symbol] = {
         price: coinData.usd,
         change24h: coinData.usd_24h_change ?? 0,
       };
@@ -117,4 +110,3 @@ export async function GET(): Promise<NextResponse<PricesResponse | { error: stri
     );
   }
 }
-

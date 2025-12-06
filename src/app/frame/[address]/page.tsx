@@ -148,3 +148,4 @@ export default async function FramePage({ params }: Props) {
   // Redirect to main app with referral - this page is primarily for meta tags
   redirect(`/?ref=${address}`);
 }
+

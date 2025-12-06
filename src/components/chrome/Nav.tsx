@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import NotificationBell from '@/components/NotificationBell';
 
 type WeekInfo = {
   season: string;
@@ -143,6 +144,16 @@ function WalletButton() {
               onClick={() => setShowDropdown(false)} 
             />
             <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border border-white/10 bg-surface-2 p-2 shadow-xl">
+              <Link
+                href={`/profile/${address}`}
+                onClick={() => setShowDropdown(false)}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/70 hover:bg-white/5 hover:text-white"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                My Profile
+              </Link>
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(address);
@@ -213,6 +224,7 @@ function WalletButton() {
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
+  const { isConnected } = useAccount();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -268,6 +280,9 @@ export default function Nav() {
               $1,000 Prize Pool
             </span>
           </div>
+
+          {/* Notification Bell - only show when connected */}
+          {isConnected && <NotificationBell />}
 
           {/* Custom Wallet Button */}
           <WalletButton />

@@ -104,3 +104,4 @@ export async function getWeekInfo(): Promise<{
   }
   return { season: '1', week: 1 };
 }
+

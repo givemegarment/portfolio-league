@@ -646,3 +646,4 @@ app.frame('/portfolio/:address', async (c) => {
 // Export handlers for Vercel
 export const GET = handle(app);
 export const POST = handle(app);
+

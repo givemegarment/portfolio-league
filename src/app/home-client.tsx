@@ -5,6 +5,7 @@ import { useAccount } from 'wagmi';
 import PortfolioBuilder from '@/components/portfolio/PortfolioBuilder';
 import LeaderboardPreview from '@/components/leaderboard/LeaderboardPreview';
 import Nav from '@/components/chrome/Nav';
+import TutorialModal from '@/components/onboarding/TutorialModal';
 
 type Stats = {
   totalPlayers: number;
@@ -133,6 +134,7 @@ export default function HomeClient() {
   return (
     <div className="min-h-screen">
       <Nav />
+      <TutorialModal />
 
       <main className="mx-auto max-w-6xl px-4 py-8">
         {/* Hero Section */}
@@ -237,7 +239,7 @@ export default function HomeClient() {
               />
               <StatCard
                 label="Assets"
-                value="4"
+                value="29"
                 delay={500}
                 icon={
                   <svg
@@ -302,7 +304,7 @@ export default function HomeClient() {
                 <HowItWorksStep
                   step={1}
                   title="Pick Your Assets"
-                  description="Choose from BTC, ETH, SOL, or USDC and set your allocation"
+                  description="Choose from 25+ tokens including BTC, ETH, SOL, and Base ecosystem favorites"
                 />
                 <HowItWorksStep
                   step={2}
