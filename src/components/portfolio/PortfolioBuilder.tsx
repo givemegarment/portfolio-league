@@ -289,7 +289,8 @@ export default function PortfolioBuilder({ address }: Props) {
     }
   };
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price: number | undefined) => {
+    if (price === undefined || price === null) return '—';
     if (price >= 1000) return `$${(price / 1000).toFixed(1)}k`;
     if (price >= 1) return `$${price.toFixed(2)}`;
     return `$${price.toFixed(4)}`;

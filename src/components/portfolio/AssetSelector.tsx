@@ -47,14 +47,16 @@ export default function AssetSelector({
     return SUPPORTED_ASSETS.filter(a => categorySymbols.includes(a.symbol));
   }, [searchQuery, activeCategory]);
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price: number | undefined) => {
+    if (price === undefined || price === null) return '—';
     if (price >= 1000) return `$${(price / 1000).toFixed(1)}k`;
     if (price >= 1) return `$${price.toFixed(2)}`;
     if (price >= 0.01) return `$${price.toFixed(4)}`;
     return `$${price.toFixed(6)}`;
   };
 
-  const formatChange = (change: number) => {
+  const formatChange = (change: number | undefined) => {
+    if (change === undefined || change === null) return '';
     const sign = change >= 0 ? '+' : '';
     return `${sign}${change.toFixed(2)}%`;
   };

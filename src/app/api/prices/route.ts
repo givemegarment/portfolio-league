@@ -46,10 +46,16 @@ async function fetchFromCoinGecko(): Promise<Record<string, PriceData>> {
 
   for (const asset of SUPPORTED_ASSETS) {
     const coinData = data[asset.coingeckoId];
-    if (coinData) {
+    if (coinData && coinData.usd !== undefined) {
       prices[asset.symbol] = {
         price: coinData.usd,
         change24h: coinData.usd_24h_change ?? 0,
+      };
+    } else {
+      // Provide fallback for assets without price data
+      prices[asset.symbol] = {
+        price: 0,
+        change24h: 0,
       };
     }
   }

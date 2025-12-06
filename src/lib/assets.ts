@@ -38,7 +38,7 @@ export const SUPPORTED_ASSETS: Asset[] = [
   // L2 Tokens
   { symbol: 'OP', name: 'Optimism', coingeckoId: 'optimism', color: '#FF0420', logo: '/coins/op.svg' },
   { symbol: 'ARB', name: 'Arbitrum', coingeckoId: 'arbitrum', color: '#28A0F0', logo: '/coins/arb.svg' },
-  { symbol: 'MATIC', name: 'Polygon', coingeckoId: 'matic-network', color: '#8247E5', logo: '/coins/matic.svg' },
+  { symbol: 'POL', name: 'Polygon', coingeckoId: 'polygon-ecosystem-token', color: '#8247E5', logo: '/coins/matic.svg' },
   
   // DeFi Blue Chips
   { symbol: 'LINK', name: 'Chainlink', coingeckoId: 'chainlink', color: '#2A5ADA', logo: '/coins/link.svg' },
@@ -49,7 +49,7 @@ export const SUPPORTED_ASSETS: Asset[] = [
   
   // AI & Meme
   { symbol: 'PEPE', name: 'Pepe', coingeckoId: 'pepe', color: '#4CAF50', logo: '/coins/pepe.svg' },
-  { symbol: 'WIF', name: 'dogwifhat', coingeckoId: 'dogwifhat', color: '#F5A623', logo: '/coins/wif.svg' },
+  { symbol: 'WIF', name: 'dogwifhat', coingeckoId: 'dogwifcoin', color: '#F5A623', logo: '/coins/wif.svg' },
   { symbol: 'BONK', name: 'Bonk', coingeckoId: 'bonk', color: '#F9A825', logo: '/coins/bonk.svg' },
   { symbol: 'RENDER', name: 'Render', coingeckoId: 'render-token', color: '#00BFFF', logo: '/coins/render.svg' },
   { symbol: 'FET', name: 'Fetch.ai', coingeckoId: 'fetch-ai', color: '#1D2951', logo: '/coins/fet.svg' },
@@ -70,7 +70,7 @@ export const ASSET_CATEGORIES = {
   'Majors': ['BTC', 'ETH', 'SOL'],
   'Stablecoins': ['USDC', 'USDT', 'DAI'],
   'Base Ecosystem': ['AERO', 'DEGEN', 'BRETT', 'TOSHI', 'HIGHER'],
-  'L2 Tokens': ['OP', 'ARB', 'MATIC'],
+  'L2 Tokens': ['OP', 'ARB', 'POL'],
   'DeFi': ['LINK', 'UNI', 'AAVE', 'MKR', 'CRV'],
   'AI & Meme': ['PEPE', 'WIF', 'BONK', 'RENDER', 'FET'],
   'Alt L1s': ['AVAX', 'NEAR', 'INJ', 'SUI', 'APT'],
