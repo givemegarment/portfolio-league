@@ -26,6 +26,18 @@ export const metadata: Metadata = {
   },
   icons: { icon: '/favicon.svg', apple: '/apple-touch-icon.png' },
   manifest: '/site.webmanifest',
+  // Farcaster Frame meta tags for embed preview
+  other: {
+    'fc:frame': 'vNext',
+    'fc:frame:image': `${SITE}/api/og/home`,
+    'fc:frame:image:aspect_ratio': '1.91:1',
+    'fc:frame:button:1': '🏆 View Leaderboard',
+    'fc:frame:button:1:action': 'link',
+    'fc:frame:button:1:target': `${SITE}`,
+    'fc:frame:button:2': '🎯 Join Competition',
+    'fc:frame:button:2:action': 'link',
+    'fc:frame:button:2:target': `${SITE}`,
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
