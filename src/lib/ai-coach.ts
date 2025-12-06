@@ -45,35 +45,100 @@ export type CoachAnalysis = {
   insights: string[];
 };
 
-// Asset metadata for analysis
-const ASSET_METADATA: Record<string, { volatility: number; category: string }> = {
-  BTC: { volatility: 0.6, category: 'blue-chip' },
-  ETH: { volatility: 0.7, category: 'blue-chip' },
-  SOL: { volatility: 0.85, category: 'alt' },
+// Risk categories for proper assessment
+type RiskCategory = 'blue-chip' | 'stablecoin' | 'alt-l1' | 'l2' | 'defi' | 'memecoin' | 'ai' | 'unknown';
+
+// Asset metadata for analysis - COMPREHENSIVE LIST
+// Volatility scale: 0.0 (no volatility) to 1.0 (extreme volatility)
+const ASSET_METADATA: Record<string, { volatility: number; category: RiskCategory }> = {
+  // Blue Chips - Lower volatility (0.5-0.7)
+  BTC: { volatility: 0.55, category: 'blue-chip' },
+  ETH: { volatility: 0.65, category: 'blue-chip' },
+  
+  // Stablecoins - Minimal volatility (0.01-0.05)
   USDC: { volatility: 0.01, category: 'stablecoin' },
+  USDT: { volatility: 0.01, category: 'stablecoin' },
+  DAI: { volatility: 0.02, category: 'stablecoin' },
+  
+  // Alt L1s - Higher volatility (0.75-0.85)
+  SOL: { volatility: 0.78, category: 'alt-l1' },
+  AVAX: { volatility: 0.80, category: 'alt-l1' },
+  NEAR: { volatility: 0.82, category: 'alt-l1' },
+  INJ: { volatility: 0.85, category: 'alt-l1' },
+  SUI: { volatility: 0.85, category: 'alt-l1' },
+  APT: { volatility: 0.83, category: 'alt-l1' },
+  
+  // L2 Tokens - Moderate-high volatility (0.70-0.80)
+  OP: { volatility: 0.75, category: 'l2' },
+  ARB: { volatility: 0.75, category: 'l2' },
+  POL: { volatility: 0.72, category: 'l2' },
+  
+  // DeFi Blue Chips - Moderate volatility (0.65-0.78)
+  LINK: { volatility: 0.68, category: 'defi' },
+  UNI: { volatility: 0.72, category: 'defi' },
+  AAVE: { volatility: 0.70, category: 'defi' },
+  MKR: { volatility: 0.65, category: 'defi' },
+  CRV: { volatility: 0.78, category: 'defi' },
+  
+  // Base Ecosystem - High volatility (0.85-0.95)
+  AERO: { volatility: 0.85, category: 'defi' },  // DeFi on Base, slightly lower risk
+  
+  // MEMECOINS - HIGHEST VOLATILITY (0.90-0.98)
+  // These are the riskiest assets!
+  BRETT: { volatility: 0.95, category: 'memecoin' },
+  TOSHI: { volatility: 0.95, category: 'memecoin' },
+  DEGEN: { volatility: 0.96, category: 'memecoin' },
+  HIGHER: { volatility: 0.94, category: 'memecoin' },
+  PEPE: { volatility: 0.95, category: 'memecoin' },
+  WIF: { volatility: 0.96, category: 'memecoin' },
+  BONK: { volatility: 0.95, category: 'memecoin' },
+  
+  // AI Tokens - High volatility (0.82-0.88)
+  RENDER: { volatility: 0.82, category: 'ai' },
+  FET: { volatility: 0.85, category: 'ai' },
 };
+
+// DEFAULT for unknown tokens - assume HIGH RISK
+// This prevents the bug where unknown tokens = 0 risk
+const DEFAULT_METADATA: { volatility: number; category: RiskCategory } = { 
+  volatility: 0.92, 
+  category: 'unknown' 
+};
+
+/**
+ * Get asset metadata with fallback to default (high risk)
+ */
+function getAssetMetadata(symbol: string): { volatility: number; category: RiskCategory } {
+  return ASSET_METADATA[symbol] || DEFAULT_METADATA;
+}
 
 /**
  * Calculate portfolio risk score (1-10)
  * Higher score = higher risk
  */
 export function calculateRiskScore(allocations: Allocation[]): number {
+  if (allocations.length === 0) return 1;
+  
   let weightedVolatility = 0;
   
   for (const { symbol, percentage } of allocations) {
-    const meta = ASSET_METADATA[symbol];
-    if (meta) {
-      weightedVolatility += meta.volatility * (percentage / 100);
-    }
+    // Use getAssetMetadata which returns DEFAULT_METADATA for unknown tokens
+    const meta = getAssetMetadata(symbol);
+    weightedVolatility += meta.volatility * (percentage / 100);
   }
   
-  // Scale to 1-10
-  return Math.min(10, Math.max(1, Math.round(weightedVolatility * 10 + 1)));
+  // Scale to 1-10 (volatility 0.0 = 1, volatility 1.0 = 10)
+  return Math.min(10, Math.max(1, Math.round(weightedVolatility * 9 + 1)));
 }
 
 /**
  * Calculate diversification score (1-10)
  * Higher score = better diversification
+ * 
+ * Penalizes:
+ * - All assets in same category (especially memecoins)
+ * - High concentration in one asset
+ * - Lack of stablecoin hedge in high-risk portfolios
  */
 export function calculateDiversificationScore(allocations: Allocation[]): number {
   if (allocations.length === 0) return 1;
@@ -81,26 +146,55 @@ export function calculateDiversificationScore(allocations: Allocation[]): number
   
   // Check category distribution
   const categoryWeights: Record<string, number> = {};
+  let memecoinWeight = 0;
+  let hasStablecoin = false;
+  
   for (const { symbol, percentage } of allocations) {
-    const category = ASSET_METADATA[symbol]?.category || 'unknown';
+    const meta = getAssetMetadata(symbol);
+    const category = meta.category;
     categoryWeights[category] = (categoryWeights[category] || 0) + percentage;
+    
+    // Track memecoin exposure
+    if (category === 'memecoin') {
+      memecoinWeight += percentage;
+    }
+    if (category === 'stablecoin') {
+      hasStablecoin = true;
+    }
   }
   
   const categories = Object.keys(categoryWeights);
-  const evenDistribution = 100 / categories.length;
+  const uniqueCategories = categories.length;
   
-  // Calculate how far from even distribution we are
+  // Calculate concentration (how evenly distributed across categories)
+  const evenDistribution = 100 / uniqueCategories;
   let deviationSum = 0;
   for (const weight of Object.values(categoryWeights)) {
     deviationSum += Math.abs(weight - evenDistribution);
   }
   
-  // More assets and more categories = higher score
-  const assetBonus = Math.min(allocations.length, 4) * 1.5;
-  const categoryBonus = categories.length * 2;
-  const distributionPenalty = deviationSum / 50;
+  // Base score from variety
+  let score = 5; // Start at middle
   
-  return Math.min(10, Math.max(1, Math.round(assetBonus + categoryBonus - distributionPenalty)));
+  // Bonus for more unique categories
+  score += (uniqueCategories - 1) * 1.5;
+  
+  // Penalty for poor distribution
+  score -= deviationSum / 40;
+  
+  // HEAVY penalty for all-memecoin portfolios
+  if (memecoinWeight >= 100) {
+    score -= 4; // All memecoins = poor diversification
+  } else if (memecoinWeight >= 66) {
+    score -= 2; // 2/3+ memecoins = low diversification
+  }
+  
+  // Bonus for having stablecoin hedge in volatile portfolio
+  if (hasStablecoin && memecoinWeight > 0) {
+    score += 1;
+  }
+  
+  return Math.min(10, Math.max(1, Math.round(score)));
 }
 
 /**
@@ -190,7 +284,7 @@ export function generateSuggestions(
     const current = currentMap.get(symbol) || 0;
     const priceData = prices[symbol];
     const avgAllocation = topAvg[symbol] || 0;
-    const meta = ASSET_METADATA[symbol];
+    const meta = getAssetMetadata(symbol);
     
     if (!priceData) continue;
     
@@ -204,7 +298,7 @@ export function generateSuggestions(
         suggestedAllocation: Math.min(current + 10, avgAllocation),
         reasoning: `${symbol} is up ${priceData.change24h.toFixed(1)}% today. Top performers have avg ${avgAllocation.toFixed(0)}% allocation.`,
         confidence: Math.min(0.9, 0.5 + priceData.change24h / 20),
-        riskImpact: meta?.volatility > 0.7 ? 'higher' : 'neutral',
+        riskImpact: meta.volatility > 0.7 ? 'higher' : 'neutral',
       });
     }
     
@@ -232,7 +326,7 @@ export function generateSuggestions(
         suggestedAllocation: Math.round(avgAllocation / 2),
         reasoning: `Consider adding ${symbol} for diversification. Top players avg ${avgAllocation.toFixed(0)}%.`,
         confidence: 0.7,
-        riskImpact: meta?.volatility < 0.5 ? 'lower' : 'neutral',
+        riskImpact: meta.volatility < 0.5 ? 'lower' : 'neutral',
       });
     }
     
@@ -253,7 +347,7 @@ export function generateSuggestions(
     // Rule 5: Stablecoin hedging
     if (symbol === 'USDC') {
       const totalVolatile = allocations
-        .filter(a => ASSET_METADATA[a.symbol]?.volatility > 0.5)
+        .filter(a => getAssetMetadata(a.symbol).volatility > 0.5)
         .reduce((sum, a) => sum + a.percentage, 0);
       
       if (totalVolatile > 80 && current < 10) {
@@ -269,6 +363,43 @@ export function generateSuggestions(
         });
       }
     }
+  }
+  
+  // Rule 6: Memecoin risk warning
+  const totalMemecoin = allocations
+    .filter(a => getAssetMetadata(a.symbol).category === 'memecoin')
+    .reduce((sum, a) => sum + a.percentage, 0);
+  
+  if (totalMemecoin >= 66 && !currentMap.has('USDC') && !currentMap.has('USDT')) {
+    suggestions.push({
+      id: 'memecoin_hedge',
+      type: 'add',
+      asset: 'USDC',
+      currentAllocation: 0,
+      suggestedAllocation: 15,
+      reasoning: `${totalMemecoin}% in memecoins is extremely risky. Consider adding a stablecoin hedge.`,
+      confidence: 0.85,
+      riskImpact: 'lower',
+    });
+  }
+  
+  // Rule 7: Suggest blue chips if no stability
+  const hasBlueChip = allocations.some(a => {
+    const cat = getAssetMetadata(a.symbol).category;
+    return cat === 'blue-chip' || cat === 'stablecoin';
+  });
+  
+  if (!hasBlueChip && totalMemecoin > 50) {
+    suggestions.push({
+      id: 'add_stability',
+      type: 'add',
+      asset: 'ETH',
+      currentAllocation: 0,
+      suggestedAllocation: 20,
+      reasoning: 'No blue-chip exposure. Consider adding ETH for portfolio stability.',
+      confidence: 0.80,
+      riskImpact: 'lower',
+    });
   }
   
   // Sort by confidence
@@ -295,28 +426,58 @@ export function analyzePortfolio(
   // Generate insights
   const insights: string[] = [];
   
-  if (riskScore >= 8) {
+  // Calculate memecoin exposure for specific warnings
+  let memecoinPercentage = 0;
+  let memecoinCount = 0;
+  for (const { symbol, percentage } of allocations) {
+    const meta = getAssetMetadata(symbol);
+    if (meta.category === 'memecoin') {
+      memecoinPercentage += percentage;
+      memecoinCount++;
+    }
+  }
+  
+  // Memecoin-specific warnings (highest priority)
+  if (memecoinPercentage >= 100) {
+    insights.push('🎰 100% memecoin exposure - EXTREME volatility expected');
+  } else if (memecoinPercentage >= 66) {
+    insights.push('⚠️ Heavy memecoin allocation - high risk of major swings');
+  } else if (memecoinPercentage >= 33) {
+    insights.push('🎲 Significant memecoin exposure - expect high volatility');
+  }
+  
+  // Risk level insights
+  if (riskScore >= 9) {
+    insights.push('🔥 Maximum risk portfolio - potential for huge gains OR losses');
+  } else if (riskScore >= 7) {
     insights.push('⚠️ High risk portfolio - consider adding stability');
-  } else if (riskScore <= 3) {
+  } else if (riskScore <= 2) {
+    insights.push('🛡️ Very conservative portfolio - lower upside potential');
+  } else if (riskScore <= 4) {
     insights.push('🛡️ Conservative portfolio - lower upside potential');
   }
   
-  if (diversificationScore <= 4) {
-    insights.push('📊 Low diversification - spread across more assets');
+  // Diversification insights
+  if (diversificationScore <= 3) {
+    insights.push('📊 Very low diversification - all eggs in one basket');
+  } else if (diversificationScore <= 5) {
+    insights.push('📊 Low diversification - consider spreading risk');
   } else if (diversificationScore >= 8) {
     insights.push('✅ Well-diversified portfolio');
   }
   
+  // Momentum insights
   if (momentumAlignment > 0.3) {
     insights.push('📈 Aligned with current momentum');
   } else if (momentumAlignment < -0.3) {
     insights.push('📉 Against current momentum - contrarian play');
   }
   
+  // Similarity insights
   if (popularityScore > 0.7) {
     insights.push('👥 Similar to top performers');
-  } else if (popularityScore < 0.3) {
-    insights.push('🎲 Unique strategy - high variance');
+  } else if (popularityScore < 0.3 && memecoinCount === 0) {
+    insights.push('🎯 Unique strategy - high variance');
   }
   
   return {
