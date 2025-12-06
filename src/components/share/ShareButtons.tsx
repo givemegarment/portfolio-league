@@ -49,21 +49,22 @@ export default function ShareButtons({ address, allocations, score, rank }: Prop
   if (rank !== undefined) ogParams.set('rank', rank.toString());
   const imageUrl = `${BASE_URL}/api/og/portfolio?${ogParams.toString()}`;
 
-  // Direct site URL with referral code
+  // Frame URL - this page has proper OG/Frame meta tags for rich previews
+  const frameUrl = `${BASE_URL}/frame/${address}`;
+  
+  // Direct site URL with referral code (for copy link)
   const siteUrlWithRef = referralCode ? `${BASE_URL}?ref=${referralCode}` : BASE_URL;
 
-  // Share text with link included (no embed card)
+  // Share text
   const shareText = score !== undefined
     ? `My portfolio is ${score >= 0 ? '+' : ''}${score.toFixed(2)}% this week on Portfolio League! 🎯 Think you can beat it?`
     : `Check out my Portfolio League picks! 🎯 Think you can beat it?`;
-  
-  const shareTextWithLink = `${shareText}\n\n${siteUrlWithRef}`;
 
-  // Twitter/X share URL - plain text with link (user attaches downloaded image)
-  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareTextWithLink)}`;
+  // Warpcast share URL - uses embeds[] for rich Frame preview
+  const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(frameUrl)}`;
 
-  // Warpcast share URL - plain text with link (user attaches downloaded image)
-  const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareTextWithLink)}`;
+  // Twitter/X share URL - includes frame URL for OG preview
+  const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(frameUrl)}`;
 
   // Download the portfolio image as PNG
   const downloadImage = async () => {
@@ -143,11 +144,13 @@ export default function ShareButtons({ address, allocations, score, rank }: Prop
               />
             </div>
 
-            {/* Step 1: Download Image */}
+            {/* Optional: Download Image */}
             <div className="mb-4">
               <div className="flex items-center gap-2 mb-3">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-base-blue text-xs font-bold text-white">1</div>
-                <span className="text-sm font-medium text-white">Download your portfolio image</span>
+                <svg className="h-5 w-5 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-sm font-medium text-white">Save image (optional)</span>
               </div>
               <button
                 onClick={downloadImage}
@@ -184,11 +187,13 @@ export default function ShareButtons({ address, allocations, score, rank }: Prop
               </button>
             </div>
 
-            {/* Step 2: Share */}
+            {/* Share Buttons */}
             <div className="mb-4">
               <div className="flex items-center gap-2 mb-3">
-                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-500 text-xs font-bold text-white">2</div>
-                <span className="text-sm font-medium text-white">Share and attach image</span>
+                <svg className="h-5 w-5 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                <span className="text-sm font-medium text-white">Share your portfolio</span>
               </div>
               
               <div className="space-y-3">
@@ -206,7 +211,7 @@ export default function ShareButtons({ address, allocations, score, rank }: Prop
                   </div>
                   <div>
                     <div className="font-semibold text-white">Share on Warpcast</div>
-                    <div className="text-xs text-white/50">Attach downloaded image to post</div>
+                    <div className="text-xs text-white/50">Portfolio card shows automatically</div>
                   </div>
                   <svg className="ml-auto h-5 w-5 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -227,7 +232,7 @@ export default function ShareButtons({ address, allocations, score, rank }: Prop
                   </div>
                   <div>
                     <div className="font-semibold text-white">Share on X</div>
-                    <div className="text-xs text-white/50">Attach downloaded image to post</div>
+                    <div className="text-xs text-white/50">Portfolio card shows automatically</div>
                   </div>
                   <svg className="ml-auto h-5 w-5 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -263,11 +268,11 @@ export default function ShareButtons({ address, allocations, score, rank }: Prop
             {/* Info */}
             <div className="rounded-xl bg-white/5 p-4">
               <div className="flex items-start gap-3">
-                <svg className="mt-0.5 h-5 w-5 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg className="mt-0.5 h-5 w-5 text-accent-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 <div className="text-sm text-white/50">
-                  Download the image first, then click share. In the compose window, attach the downloaded image to your post for the best preview.
+                  Your portfolio card will appear automatically when you share. Just click a share button and post!
                 </div>
               </div>
             </div>
