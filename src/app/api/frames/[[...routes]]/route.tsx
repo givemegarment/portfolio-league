@@ -1,6 +1,6 @@
 /** @jsxImportSource frog/jsx */
 import { Button, Frog } from 'frog';
-import { handle } from 'frog/vercel';
+import { handle } from 'frog/next';
 import { 
   BASE_URL, 
   ASSET_COLORS, 
@@ -152,9 +152,7 @@ app.frame('/', async (c) => {
 
 // ============ LEADERBOARD FRAME ============
 app.frame('/leaderboard', async (c) => {
-  const { deriveState } = c;
-  const state = deriveState((prev) => prev);
-  const page = state.page || 0;
+  const page = c.previousState?.page || 0;
   
   const leaderboard = await fetchLeaderboard(10);
   const weekInfo = await getWeekInfo();
@@ -276,20 +274,16 @@ app.frame('/leaderboard', async (c) => {
 });
 
 // Handle leaderboard pagination
-app.frame('/leaderboard', async (c) => {
-  const { buttonValue, deriveState } = c;
+app.frame('/leaderboard-page', async (c) => {
+  const { buttonValue } = c;
+  const prevPage = c.previousState?.page || 0;
   
-  deriveState((prev) => {
-    if (buttonValue === 'next') {
-      prev.page = (prev.page || 0) + 1;
-    } else if (buttonValue === 'prev') {
-      prev.page = Math.max(0, (prev.page || 0) - 1);
-    }
-  });
-  
-  // Re-render with updated state
-  const state = c.deriveState((s) => s);
-  const page = state.page || 0;
+  let page = prevPage;
+  if (buttonValue === 'next') {
+    page = prevPage + 1;
+  } else if (buttonValue === 'prev') {
+    page = Math.max(0, prevPage - 1);
+  }
   const leaderboard = await fetchLeaderboard(10);
   const weekInfo = await getWeekInfo();
   

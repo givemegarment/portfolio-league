@@ -87,7 +87,7 @@ export function getAsset(symbol: string): Asset | undefined {
  * Get assets by category
  */
 export function getAssetsByCategory(category: AssetCategory): Asset[] {
-  const symbols = ASSET_CATEGORIES[category];
+  const symbols = ASSET_CATEGORIES[category] as readonly string[];
   return SUPPORTED_ASSETS.filter(a => symbols.includes(a.symbol));
 }
 

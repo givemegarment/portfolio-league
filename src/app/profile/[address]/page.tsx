@@ -235,7 +235,7 @@ export default async function ProfilePage({ params }: Props) {
           {/* Achievements - 1 column */}
           <section>
             <h2 className="mb-4 text-lg font-bold text-white">Achievements</h2>
-            <AchievementBadges badges={achievements} />
+            <AchievementBadges achievements={achievements} />
           </section>
         </div>
       </main>

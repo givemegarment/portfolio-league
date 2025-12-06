@@ -43,7 +43,7 @@ export default function AssetSelector({
       return searchAssets(searchQuery);
     }
     
-    const categorySymbols = ASSET_CATEGORIES[activeCategory];
+    const categorySymbols = ASSET_CATEGORIES[activeCategory] as readonly string[];
     return SUPPORTED_ASSETS.filter(a => categorySymbols.includes(a.symbol));
   }, [searchQuery, activeCategory]);
 

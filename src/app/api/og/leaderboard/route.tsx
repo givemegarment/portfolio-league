@@ -2,7 +2,6 @@ import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
-export const contentType = 'image/png';
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://portfolio-league.vercel.app';
 
