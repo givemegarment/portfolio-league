@@ -6,6 +6,7 @@ import PortfolioBuilder from '@/components/portfolio/PortfolioBuilder';
 import LeaderboardPreview from '@/components/leaderboard/LeaderboardPreview';
 import Nav from '@/components/chrome/Nav';
 import TutorialModal from '@/components/onboarding/TutorialModal';
+import HomePageSkeleton from '@/components/home/HomePageSkeleton';
 
 type Stats = {
   totalPlayers: number;
@@ -128,7 +129,7 @@ export default function HomeClient() {
   }, []);
 
   if (!mounted) {
-    return null;
+    return <HomePageSkeleton />;
   }
 
   return (
@@ -343,20 +344,20 @@ export default function HomeClient() {
             </div>
 
             <div className="flex items-center gap-6 text-xs text-white/30">
-              <a href="#" className="hover:text-white/60 transition-colors">
+              <a href="/how-to-play" className="hover:text-white/60 transition-colors">
                 How to Play
               </a>
-              <a href="#" className="hover:text-white/60 transition-colors">
+              <a href="/faq" className="hover:text-white/60 transition-colors">
                 FAQ
               </a>
-              <a href="#" className="hover:text-white/60 transition-colors">
+              <a href="/terms" className="hover:text-white/60 transition-colors">
                 Terms
               </a>
             </div>
           </div>
 
           <div className="mt-6 text-center text-xs text-white/20">
-            © 2024 Portfolio League. All rights reserved.
+            © 2025 Portfolio League. All rights reserved.
           </div>
         </footer>
       </main>

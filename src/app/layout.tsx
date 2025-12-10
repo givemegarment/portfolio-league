@@ -24,7 +24,13 @@ export const metadata: Metadata = {
     images: ['/api/og/home'],
     site: '@portfolioleague',
   },
-  icons: { icon: '/favicon.svg', apple: '/apple-touch-icon.png' },
+  icons: { 
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: '/icon.svg',
+  },
   manifest: '/site.webmanifest',
   // Farcaster Frame meta tags for embed preview
   other: {
