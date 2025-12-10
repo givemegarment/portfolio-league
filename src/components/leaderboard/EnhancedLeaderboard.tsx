@@ -136,6 +136,7 @@ function SkeletonRow() {
           <div className="h-5 w-16 rounded shimmer" />
         </div>
       </td>
+      <td className="px-4 py-4"><div className="h-6 w-16 rounded shimmer" /></td>
     </tr>
   );
 }
@@ -302,6 +303,7 @@ export default function EnhancedLeaderboard({
               <th className="px-4 py-3 w-24">Return</th>
               <th className="px-4 py-3 w-28">Trend</th>
               <th className="px-4 py-3">Portfolio</th>
+              <th className="px-4 py-3 w-20"></th>
             </tr>
           </thead>
           <tbody>
@@ -317,7 +319,7 @@ export default function EnhancedLeaderboard({
 
             {filteredRows && filteredRows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center">
+                <td colSpan={6} className="px-4 py-12 text-center">
                   <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5">
                     <svg className="h-8 w-8 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -387,6 +389,17 @@ export default function EnhancedLeaderboard({
                         <span className="text-xs text-white/40">+{r.allocations.length - 3}</span>
                       )}
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <a
+                      href={`/compare?address=${r.user}`}
+                      className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-2.5 py-1.5 text-xs font-medium text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                      </svg>
+                      Compare
+                    </a>
                   </td>
                 </tr>
               );

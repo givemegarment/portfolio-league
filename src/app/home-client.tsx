@@ -7,6 +7,7 @@ import LeaderboardPreview from '@/components/leaderboard/LeaderboardPreview';
 import Nav from '@/components/chrome/Nav';
 import TutorialModal from '@/components/onboarding/TutorialModal';
 import HomePageSkeleton from '@/components/home/HomePageSkeleton';
+import CountdownTimer from '@/components/home/CountdownTimer';
 
 type Stats = {
   totalPlayers: number;
@@ -106,19 +107,25 @@ export default function HomeClient() {
     // Fetch dynamic stats
     const fetchStats = async () => {
       try {
-        // Get leaderboard to count players
-        const leaderboardRes = await fetch('/api/leaderboard?limit=100');
-        const leaderboardData = await leaderboardRes.json();
+        // Fetch all data in parallel
+        const [leaderboardRes, portfolioRes, configRes] = await Promise.all([
+          fetch('/api/leaderboard?limit=100'),
+          fetch('/api/portfolio?address=0x0000000000000000000000000000000000000000'),
+          fetch('/api/config'),
+        ]);
         
-        // Get week info
-        const portfolioRes = await fetch('/api/portfolio?address=0x0000000000000000000000000000000000000000');
-        const portfolioData = await portfolioRes.json();
+        const [leaderboardData, portfolioData, configData] = await Promise.all([
+          leaderboardRes.json(),
+          portfolioRes.json(),
+          configRes.json(),
+        ]);
         
         setStats(prev => ({
           ...prev,
           totalPlayers: Array.isArray(leaderboardData) ? leaderboardData.length : 0,
           weekNumber: portfolioData.weekInfo?.week || prev.weekNumber,
           season: parseInt(portfolioData.weekInfo?.season?.replace('s', '') || '1'),
+          prizePool: configData.calculatedPrizePool || prev.prizePool,
         }));
       } catch (error) {
         console.error('Error fetching stats:', error);
@@ -260,6 +267,11 @@ export default function HomeClient() {
               />
             </div>
           </div>
+        </section>
+
+        {/* Countdown Timer */}
+        <section className="mb-8 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
+          <CountdownTimer />
         </section>
 
         {/* Main Content Grid */}
