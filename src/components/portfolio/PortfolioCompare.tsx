@@ -305,11 +305,13 @@ export default function PortfolioCompare({ yourAddress, compareAddress, onClose 
           <h3 className="mb-4 text-sm font-semibold text-white">Analysis</h3>
           
           {(() => {
-            const yourSymbols = new Set(yourPortfolio.allocations.map(a => a.symbol));
-            const theirSymbols = new Set(theirPortfolio.allocations.map(a => a.symbol));
-            const common = [...yourSymbols].filter(s => theirSymbols.has(s));
-            const onlyYou = [...yourSymbols].filter(s => !theirSymbols.has(s));
-            const onlyThem = [...theirSymbols].filter(s => !yourSymbols.has(s));
+            const yourSymbols = yourPortfolio.allocations.map(a => a.symbol);
+            const theirSymbols = theirPortfolio.allocations.map(a => a.symbol);
+            const theirSymbolsSet = new Set(theirSymbols);
+            const yourSymbolsSet = new Set(yourSymbols);
+            const common = yourSymbols.filter(s => theirSymbolsSet.has(s));
+            const onlyYou = yourSymbols.filter(s => !theirSymbolsSet.has(s));
+            const onlyThem = theirSymbols.filter(s => !yourSymbolsSet.has(s));
 
             return (
               <div className="grid gap-4 sm:grid-cols-3">
