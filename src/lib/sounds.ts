@@ -176,3 +176,4 @@ export function playErrorBeep(): void {
   playBeep(220, 200, 0.2); // A3
 }
 
+

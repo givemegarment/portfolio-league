@@ -299,3 +299,4 @@ export function isValidCompetitionType(type: string): type is CompetitionType {
   return ['daily', 'threeDay', 'weekly', 'monthly'].includes(type);
 }
 
+

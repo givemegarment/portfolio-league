@@ -149,3 +149,4 @@ export default async function FramePage({ params }: Props) {
   redirect(`/?ref=${address}`);
 }
 
+
