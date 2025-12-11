@@ -1,5 +1,40 @@
 import { NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
+import { calculateScore, type StoredPortfolio, type PriceData } from '@/lib/scoring';
+
+type PricesResponse = {
+  prices: Record<string, PriceData>;
+  lastUpdated: number;
+  cached: boolean;
+};
+
+/**
+ * Fetch current prices from our prices API
+ */
+async function fetchCurrentPrices(): Promise<Record<string, PriceData>> {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  
+  try {
+    const response = await fetch(`${baseUrl}/api/prices`, {
+      cache: 'no-store',
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch prices');
+    }
+    
+    const data: PricesResponse = await response.json();
+    return data.prices;
+  } catch (error) {
+    console.error('Error fetching prices:', error);
+    return {
+      BTC: { price: 97000, change24h: 0 },
+      ETH: { price: 3600, change24h: 0 },
+      SOL: { price: 230, change24h: 0 },
+      USDC: { price: 1, change24h: 0 },
+    };
+  }
+}
 
 type PlayerStats = {
   address: string;
@@ -35,6 +70,9 @@ export async function GET(
     // Get all portfolio keys for this user
     const allKeys = await redis.keys('portfolio:*');
     
+    // Fetch current prices for score calculation
+    const currentPrices = await fetchCurrentPrices();
+    
     const stats: PlayerStats = {
       address,
       totalCompetitions: 0,
@@ -58,49 +96,83 @@ export async function GET(
 
     // Iterate through all competition weeks
     for (const key of allKeys) {
-      const data = await redis.hget(key, address);
+      // Get all portfolios to do case-insensitive address lookup
+      const allPortfolios = await redis.hgetall<Record<string, string>>(key);
       
-      if (data) {
-        stats.totalCompetitions++;
+      if (!allPortfolios) continue;
+      
+      // Find the user's address key (case-insensitive)
+      const userAddressKey = Object.keys(allPortfolios).find(
+        (k) => k.toLowerCase() === address.toLowerCase()
+      );
+      
+      if (!userAddressKey) continue;
+      
+      const data = allPortfolios[userAddressKey];
+      
+      stats.totalCompetitions++;
 
-        // Parse the portfolio data
-        const portfolio = typeof data === 'string' ? JSON.parse(data) : data;
-        
-        // Track timestamp for join date / last active
-        if (portfolio.timestamp) {
-          if (!stats.joinDate || portfolio.timestamp < stats.joinDate) {
-            stats.joinDate = portfolio.timestamp;
-          }
-          if (!stats.lastActive || portfolio.timestamp > stats.lastActive) {
-            stats.lastActive = portfolio.timestamp;
-          }
+      // Parse the portfolio data
+      const portfolio: StoredPortfolio = typeof data === 'string' ? JSON.parse(data) : data;
+      
+      // Track timestamp for join date / last active
+      if (portfolio.timestamp) {
+        if (!stats.joinDate || portfolio.timestamp < stats.joinDate) {
+          stats.joinDate = portfolio.timestamp;
         }
-
-        // Track competition type
-        if (key.includes('daily')) {
-          stats.competitionBreakdown.daily++;
-        } else if (key.includes('monthly')) {
-          stats.competitionBreakdown.monthly++;
-        } else {
-          stats.competitionBreakdown.weekly++;
+        if (!stats.lastActive || portfolio.timestamp > stats.lastActive) {
+          stats.lastActive = portfolio.timestamp;
         }
+      }
 
-        // Get rank for this competition (would need leaderboard calculation)
-        // For now, we'll use a simplified approach
-        const allPortfolios = await redis.hgetall(key);
-        if (allPortfolios) {
-          const totalParticipants = Object.keys(allPortfolios).length;
+      // Track competition type
+      if (key.includes('daily')) {
+        stats.competitionBreakdown.daily++;
+      } else if (key.includes('monthly')) {
+        stats.competitionBreakdown.monthly++;
+      } else {
+        stats.competitionBreakdown.weekly++;
+      }
+
+      // Calculate scores for all participants to determine rank
+      const scores: { address: string; score: number }[] = [];
+      
+      for (const [userAddr, portfolioJson] of Object.entries(allPortfolios)) {
+        try {
+          const userPortfolio: StoredPortfolio = JSON.parse(portfolioJson);
           
-          // Calculate this user's rank based on score
-          // This is a simplified version - in production you'd have stored scores
-          const rank = Math.floor(Math.random() * totalParticipants) + 1; // Placeholder
-          ranks.push(rank);
-
-          // Check if top 10%
-          if (rank <= Math.ceil(totalParticipants * 0.1)) {
-            topFinishes++;
+          if (userPortfolio.entryPrices && Object.keys(userPortfolio.entryPrices).length > 0) {
+            const result = calculateScore(userPortfolio, currentPrices);
+            scores.push({ address: userAddr, score: result.totalScore });
+          } else {
+            scores.push({ address: userAddr, score: 0 });
           }
+        } catch {
+          scores.push({ address: userAddr, score: 0 });
         }
+      }
+      
+      // Sort by score descending
+      scores.sort((a, b) => b.score - a.score);
+      
+      const totalParticipants = scores.length;
+      
+      // Find user's rank (1-indexed)
+      const rank = scores.findIndex(
+        (s) => s.address.toLowerCase() === address.toLowerCase()
+      ) + 1;
+      
+      // Get user's score
+      const userScore = scores.find(
+        (s) => s.address.toLowerCase() === address.toLowerCase()
+      )?.score || 0;
+      
+      returns.push(userScore);
+      ranks.push(rank);
+
+      // Check if top 10%
+      if (rank <= Math.ceil(totalParticipants * 0.1)) {
+        topFinishes++;
       }
     }
 

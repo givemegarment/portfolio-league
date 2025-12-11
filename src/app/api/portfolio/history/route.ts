@@ -93,7 +93,14 @@ export async function GET(req: Request) {
       // Get all portfolios for this week to calculate rank
       const allPortfolios = await redis.hgetall<Record<string, string>>(key);
       
-      if (!allPortfolios || !allPortfolios[address]) continue;
+      if (!allPortfolios) continue;
+      
+      // Find the user's address key (case-insensitive) since Ethereum addresses are case-insensitive
+      const userAddressKey = Object.keys(allPortfolios).find(
+        (key) => key.toLowerCase() === address.toLowerCase()
+      );
+      
+      if (!userAddressKey) continue;
       
       const totalParticipants = Object.keys(allPortfolios).length;
       
@@ -123,8 +130,8 @@ export async function GET(req: Request) {
         (s) => s.address.toLowerCase() === address.toLowerCase()
       ) + 1;
       
-      // Get user's portfolio and score
-      const portfolio: StoredPortfolio = JSON.parse(allPortfolios[address]);
+      // Get user's portfolio and score using the actual key from Redis
+      const portfolio: StoredPortfolio = JSON.parse(allPortfolios[userAddressKey]);
       const userScore = scores.find(
         (s) => s.address.toLowerCase() === address.toLowerCase()
       )?.score || 0;
