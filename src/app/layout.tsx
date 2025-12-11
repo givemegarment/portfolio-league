@@ -21,21 +21,21 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://portfolio-league.verce
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
-  title: 'Portfolio League | Crypto Portfolio Competition',
-  description: 'Pick 3 assets. Compete weekly. Win prizes. The ultimate social crypto portfolio game on Base.',
+  title: 'Imitatio | Master the Art of Strategy Emulation',
+  description: 'Study top traders. Build your strategy. Compete in Chambers. The ultimate social crypto portfolio game on Base.',
   openGraph: { 
-    title: 'Portfolio League', 
-    description: 'Pick 3 assets. Compete weekly. Win prizes on Base.', 
-    images: [{ url: '/api/og/home', width: 1200, height: 630, alt: 'Portfolio League' }], 
+    title: 'Imitatio', 
+    description: 'Study top traders. Build your strategy. Compete in Chambers on Base.', 
+    images: [{ url: '/api/og/home', width: 1200, height: 630, alt: 'Imitatio' }], 
     type: 'website',
-    siteName: 'Portfolio League',
+    siteName: 'Imitatio',
   },
   twitter: { 
     card: 'summary_large_image', 
-    title: 'Portfolio League', 
-    description: 'Pick 3 assets. Compete weekly. Win prizes on Base.', 
+    title: 'Imitatio', 
+    description: 'Study top traders. Build your strategy. Compete in Chambers on Base.', 
     images: ['/api/og/home'],
-    site: '@portfolioleague',
+    site: '@imitatio',
   },
   icons: { 
     icon: [

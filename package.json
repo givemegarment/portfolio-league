@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "@coinbase/onchainkit": "1.0.3",
+    "clsx": "^2.1.0",
+    "tailwind-merge": "^2.3.0",
     "@metamask/sdk": "^0.33.1",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@tanstack/react-query": "5.90.7",

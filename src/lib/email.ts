@@ -1,5 +1,5 @@
 /**
- * Email utilities for Portfolio League using Resend
+ * Email utilities for Imitatio using Resend
  */
 
 import { Resend } from 'resend';
@@ -18,7 +18,7 @@ function getResend(): Resend {
   return resendClient;
 }
 
-const FROM_EMAIL = 'Portfolio League <noreply@portfolioleague.xyz>';
+const FROM_EMAIL = 'Imitatio <noreply@portfolioleague.xyz>';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://portfolio-league.vercel.app';
 
 export type EmailSubscription = {
@@ -65,7 +65,7 @@ export async function sendWeeklyDigest(params: {
           <div style="max-width: 600px; margin: 0 auto;">
             <!-- Header -->
             <div style="text-align: center; margin-bottom: 32px;">
-              <h1 style="color: #0052FF; font-size: 28px; margin: 0;">Portfolio League</h1>
+              <h1 style="color: #0052FF; font-size: 28px; margin: 0;">Imitatio</h1>
               <p style="color: #71717a; font-size: 14px; margin-top: 8px;">Week ${weekNumber} Results</p>
             </div>
             
@@ -100,7 +100,7 @@ export async function sendWeeklyDigest(params: {
             
             <!-- Footer -->
             <div style="text-align: center; color: #71717a; font-size: 12px;">
-              <p>You're receiving this because you subscribed to Portfolio League updates.</p>
+              <p>You're receiving this because you subscribed to Imitatio updates.</p>
               <p>
                 <a href="${SITE_URL}/api/notifications/email/unsubscribe?address=${address}" style="color: #0052FF; text-decoration: none;">Unsubscribe</a>
               </p>
@@ -152,7 +152,7 @@ export async function sendAchievementEmail(params: {
           <div style="max-width: 600px; margin: 0 auto;">
             <!-- Header -->
             <div style="text-align: center; margin-bottom: 32px;">
-              <h1 style="color: #0052FF; font-size: 28px; margin: 0;">Portfolio League</h1>
+              <h1 style="color: #0052FF; font-size: 28px; margin: 0;">Imitatio</h1>
             </div>
             
             <!-- Achievement Card -->
@@ -209,7 +209,7 @@ export async function sendWelcomeEmail(params: {
     const { data, error } = await getResend().emails.send({
       from: FROM_EMAIL,
       to: email,
-      subject: 'Welcome to Portfolio League! 🎯',
+      subject: 'Welcome to Imitatio! 🎯',
       html: `
         <!DOCTYPE html>
         <html>
@@ -221,12 +221,12 @@ export async function sendWelcomeEmail(params: {
           <div style="max-width: 600px; margin: 0 auto;">
             <!-- Header -->
             <div style="text-align: center; margin-bottom: 32px;">
-              <h1 style="color: #0052FF; font-size: 28px; margin: 0;">Portfolio League</h1>
+              <h1 style="color: #0052FF; font-size: 28px; margin: 0;">Imitatio</h1>
             </div>
             
             <!-- Welcome Card -->
             <div style="background-color: #121217; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 32px; margin-bottom: 24px;">
-              <h2 style="color: #f4f4f5; font-size: 24px; margin: 0 0 16px 0;">Welcome to Portfolio League! 🎯</h2>
+              <h2 style="color: #f4f4f5; font-size: 24px; margin: 0 0 16px 0;">Welcome to Imitatio! 🎯</h2>
               <p style="color: #a1a1aa; font-size: 16px; line-height: 1.6; margin: 0 0 24px 0;">
                 Hey ${shortAddress}, you're now subscribed to email notifications! Here's what you'll receive:
               </p>

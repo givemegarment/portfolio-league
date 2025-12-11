@@ -17,8 +17,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const shortAddress = `${params.address.slice(0, 6)}...${params.address.slice(-4)}`;
   
   return {
-    title: `${shortAddress} - Portfolio League`,
-    description: `View ${shortAddress}'s portfolio performance and competition history on Portfolio League.`,
+    title: `${shortAddress} - Imitatio`,
+    description: `View ${shortAddress}'s portfolio performance and competition history on Imitatio.`,
   };
 }
 
