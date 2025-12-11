@@ -22,16 +22,30 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+// Get the base URL for API calls
+function getBaseUrl(): string {
+  // In production on Vercel, use VERCEL_URL or NEXT_PUBLIC_SITE_URL
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL;
+  }
+  // Fallback for local development
+  return 'http://localhost:3000';
+}
+
 // Fetch player stats
 async function getPlayerStats(address: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const baseUrl = getBaseUrl();
   
   try {
     const response = await fetch(`${baseUrl}/api/user/${address}/stats`, {
-      next: { revalidate: 60 }, // Cache for 60 seconds
+      cache: 'no-store', // Don't cache - always get fresh data
     });
     
     if (!response.ok) {
+      console.error('Failed to fetch player stats:', response.status, response.statusText);
       return null;
     }
     
@@ -68,11 +82,11 @@ type HistoryEntry = {
 
 // Fetch portfolio history
 async function getPortfolioHistory(address: string): Promise<HistoryEntry[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const baseUrl = getBaseUrl();
   
   try {
     const response = await fetch(`${baseUrl}/api/portfolio/history?address=${address}`, {
-      next: { revalidate: 60 },
+      cache: 'no-store', // Don't cache - always get fresh data
     });
     
     if (!response.ok) {
@@ -101,11 +115,11 @@ async function getPortfolioHistory(address: string): Promise<HistoryEntry[]> {
 
 // Fetch achievements
 async function getAchievements(address: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const baseUrl = getBaseUrl();
   
   try {
     const response = await fetch(`${baseUrl}/api/user/${address}/achievements`, {
-      next: { revalidate: 300 }, // Cache for 5 minutes
+      cache: 'no-store', // Don't cache - always get fresh data
     });
     
     if (!response.ok) {

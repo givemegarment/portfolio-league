@@ -21,10 +21,23 @@ type PricesResponse = {
 };
 
 /**
+ * Get the base URL for internal API calls
+ */
+function getBaseUrl(): string {
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  if (process.env.NEXT_PUBLIC_SITE_URL) {
+    return process.env.NEXT_PUBLIC_SITE_URL;
+  }
+  return 'http://localhost:3000';
+}
+
+/**
  * Fetch current prices from our prices API
  */
 async function fetchCurrentPrices(): Promise<Record<string, PriceData>> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  const baseUrl = getBaseUrl();
   
   try {
     const response = await fetch(`${baseUrl}/api/prices`, {
