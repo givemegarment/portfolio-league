@@ -243,12 +243,31 @@ export default function PortfolioBuilder({ address }: Props) {
           portfolio: allocations.map(a => ({ symbol: a.symbol, percentage: a.percentage }))
         }),
       });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to save');
-      }
       
       const responseData = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(responseData.error || 'Failed to save');
+      }
+      
+      // Check if the server verified the save
+      if (!responseData.verified) {
+        console.warn('[PortfolioBuilder] Server did not confirm verification');
+      }
+      
+      // EXTRA VERIFICATION: Fetch the portfolio back to confirm it was saved
+      console.log('[PortfolioBuilder] Verifying save by fetching portfolio back...');
+      const verifyRes = await fetch(`/api/portfolio?address=${address}`);
+      const verifyData = await verifyRes.json();
+      
+      if (!verifyData.portfolio || verifyData.portfolio.allocations?.length !== allocations.length) {
+        console.error('[PortfolioBuilder] VERIFICATION FAILED - Portfolio not found after save!');
+        console.error('[PortfolioBuilder] Expected allocations:', allocations);
+        console.error('[PortfolioBuilder] Got:', verifyData.portfolio);
+        throw new Error('Portfolio save verification failed. Your portfolio was not saved. Please try again.');
+      }
+      
+      console.log('[PortfolioBuilder] Save verified successfully!');
       
       setStatus({ type: 'success', message: 'Portfolio locked in! Good luck this week.' });
       playSuccessBeep();

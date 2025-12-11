@@ -138,12 +138,46 @@ export async function POST(req: Request) {
     timestamp: Date.now(),
   };
 
+  console.log(`[Portfolio Save] Attempting to save portfolio for ${body.address} to ${weekKey}`);
+  console.log(`[Portfolio Save] Allocations:`, allocations);
+  console.log(`[Portfolio Save] Entry prices:`, entryPrices);
+
   try {
+    // Save to Redis
     await redis.hset(weekKey, {
       [body.address]: JSON.stringify(portfolioData),
     });
+    
+    console.log(`[Portfolio Save] Write completed, now verifying...`);
+    
+    // CRITICAL: Verify the write was successful by reading it back
+    const verification = await redis.hget<string>(weekKey, body.address);
+    
+    if (!verification) {
+      console.error(`[Portfolio Save] VERIFICATION FAILED: Data not found after write for ${body.address}`);
+      return NextResponse.json(
+        { error: 'Portfolio save failed verification. Data was not persisted. Please try again.' },
+        { status: 500 }
+      );
+    }
+    
+    // Parse and verify the data matches what we saved
+    const verifiedData = JSON.parse(verification);
+    if (!verifiedData.allocations || verifiedData.allocations.length !== allocations.length) {
+      console.error(`[Portfolio Save] VERIFICATION FAILED: Data mismatch for ${body.address}`);
+      console.error(`[Portfolio Save] Expected:`, portfolioData);
+      console.error(`[Portfolio Save] Got:`, verifiedData);
+      return NextResponse.json(
+        { error: 'Portfolio save failed verification. Data mismatch. Please try again.' },
+        { status: 500 }
+      );
+    }
+    
+    console.log(`[Portfolio Save] SUCCESS: Portfolio verified and saved for ${body.address}`);
+    console.log(`[Portfolio Save] Verified data:`, verifiedData);
+    
   } catch (error) {
-    console.error('Redis error saving portfolio:', error);
+    console.error('[Portfolio Save] Redis error:', error);
     return NextResponse.json(
       { error: 'Failed to save portfolio. Please try again later.' },
       { status: 500 }
@@ -152,6 +186,7 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ 
     ok: true, 
+    verified: true,
     portfolio: portfolioData,
     week: { season, week },
   });
@@ -174,14 +209,33 @@ export async function GET(req: Request) {
 
   const weekKey = getWeekKey(season, week);
   
+  console.log(`[Portfolio GET] Fetching portfolio for ${address} from ${weekKey}`);
+  
   let portfolio: StoredPortfolio | null = null;
   let basket: string[] | null = null;
   let redisError = false;
 
   try {
-    const value = await redis.hget<string>(weekKey, address);
+    // First try exact match, then try case-insensitive lookup
+    let value = await redis.hget<string>(weekKey, address);
+    
+    // If not found, try case-insensitive lookup
+    if (!value) {
+      console.log(`[Portfolio GET] Exact match not found, trying case-insensitive lookup...`);
+      const allPortfolios = await redis.hgetall<Record<string, string>>(weekKey);
+      if (allPortfolios) {
+        const matchingKey = Object.keys(allPortfolios).find(
+          key => key.toLowerCase() === address.toLowerCase()
+        );
+        if (matchingKey) {
+          value = allPortfolios[matchingKey];
+          console.log(`[Portfolio GET] Found with case-insensitive match: ${matchingKey}`);
+        }
+      }
+    }
 
     if (value) {
+      console.log(`[Portfolio GET] Found portfolio data for ${address}`);
       try {
         const parsed = JSON.parse(value);
         
@@ -189,6 +243,7 @@ export async function GET(req: Request) {
         if (parsed.allocations && Array.isArray(parsed.allocations)) {
           portfolio = parsed as StoredPortfolio;
           basket = parsed.allocations.map((a: AllocationItem) => a.symbol);
+          console.log(`[Portfolio GET] Parsed portfolio with ${portfolio.allocations.length} allocations`);
         }
         // Handle legacy format (just array of symbols)
         else if (Array.isArray(parsed)) {
@@ -204,15 +259,34 @@ export async function GET(req: Request) {
             entryPrices: {}, // No entry prices for legacy data
             timestamp: 0,
           };
+          console.log(`[Portfolio GET] Parsed legacy format with ${basket.length} symbols`);
         }
-      } catch {
-        // Invalid JSON, ignore
+      } catch (parseError) {
+        console.error(`[Portfolio GET] Failed to parse portfolio data:`, parseError);
+      }
+    } else {
+      console.log(`[Portfolio GET] No portfolio found for ${address} in ${weekKey}`);
+      
+      // Debug: List all addresses in this week's portfolios
+      try {
+        const allPortfolios = await redis.hgetall<Record<string, string>>(weekKey);
+        if (allPortfolios) {
+          const addresses = Object.keys(allPortfolios);
+          console.log(`[Portfolio GET] Total portfolios in ${weekKey}: ${addresses.length}`);
+          console.log(`[Portfolio GET] Sample addresses:`, addresses.slice(0, 5));
+        } else {
+          console.log(`[Portfolio GET] No portfolios exist for ${weekKey}`);
+        }
+      } catch (debugError) {
+        console.error(`[Portfolio GET] Debug query failed:`, debugError);
       }
     }
   } catch (error) {
-    console.error('Redis error fetching portfolio:', error);
+    console.error('[Portfolio GET] Redis error:', error);
     redisError = true;
   }
+
+  console.log(`[Portfolio GET] Returning portfolio=${!!portfolio}, basket=${!!basket}, redisError=${redisError}`);
 
   return NextResponse.json({ 
     address, 
