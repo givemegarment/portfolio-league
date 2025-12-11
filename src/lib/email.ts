@@ -9,7 +9,7 @@ export type EmailSubscription = {
     achievements: boolean;
     leaderboardUpdates: boolean;
   };
-  subscribedAt: string;
+  subscribedAt: number;
 };
 
 type WeeklyDigestParams = {
