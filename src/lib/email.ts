@@ -4,8 +4,19 @@
 
 import { Resend } from 'resend';
 
-// Initialize Resend client
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy initialize Resend client to avoid build-time errors
+let resendClient: Resend | null = null;
+
+function getResend(): Resend {
+  if (!resendClient) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      throw new Error('RESEND_API_KEY environment variable is not set');
+    }
+    resendClient = new Resend(apiKey);
+  }
+  return resendClient;
+}
 
 const FROM_EMAIL = 'Portfolio League <noreply@portfolioleague.xyz>';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://portfolio-league.vercel.app';
@@ -39,7 +50,7 @@ export async function sendWeeklyDigest(params: {
   const assetsText = topAssets.map(a => `${a.symbol} (${a.percentage}%)`).join(', ');
 
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: `Week ${weekNumber} Results - You ranked #${rank}!`,
@@ -126,7 +137,7 @@ export async function sendAchievementEmail(params: {
   const shortAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
 
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: `${achievementIcon} Achievement Unlocked: ${achievementName}!`,
@@ -195,7 +206,7 @@ export async function sendWelcomeEmail(params: {
   const shortAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
 
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: 'Welcome to Portfolio League! 🎯',
@@ -254,3 +265,4 @@ export async function sendWelcomeEmail(params: {
     return { success: false, error };
   }
 }
+
