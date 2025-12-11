@@ -55,10 +55,21 @@ export async function GET(req: Request) {
   const { season, week } = getCurrentWeek();
   const weekKey = getWeekKey(season, week);
 
+  console.log(`[Leaderboard] Fetching portfolios for ${weekKey}`);
+
   // Fetch all portfolios for this week
-  const allPortfolios = await redis.hgetall<Record<string, string>>(weekKey);
+  let allPortfolios: Record<string, string> | null = null;
+  
+  try {
+    allPortfolios = await redis.hgetall<Record<string, string>>(weekKey);
+    console.log(`[Leaderboard] Found ${allPortfolios ? Object.keys(allPortfolios).length : 0} portfolios`);
+  } catch (error) {
+    console.error('[Leaderboard] Redis error:', error);
+    return NextResponse.json({ error: 'Failed to fetch leaderboard data' }, { status: 500 });
+  }
   
   if (!allPortfolios || Object.keys(allPortfolios).length === 0) {
+    console.log('[Leaderboard] No portfolios found for current week');
     return NextResponse.json([]);
   }
 

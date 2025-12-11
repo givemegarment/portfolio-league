@@ -1,6 +1,19 @@
 import type { Metadata } from 'next'
 import dynamic from 'next/dynamic'
+import { Outfit, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
+
+const outfit = Outfit({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-outfit',
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-jetbrains-mono',
+})
 
 const Providers = dynamic(() => import('@/components/Providers'), { ssr: false })
 
@@ -48,8 +61,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="bg-[#050507]">
-      <body className="min-h-screen text-white antialiased">
+    <html lang="en" className={`bg-[#050507] ${outfit.variable} ${jetbrainsMono.variable}`}>
+      <body className="min-h-screen text-white antialiased font-sans">
         {/* Background gradient mesh */}
         <div 
           className="fixed inset-0 -z-10 bg-gradient-mesh opacity-60"

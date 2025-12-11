@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { getAsset } from '@/lib/assets';
 import { COMPETITION_CONFIGS, type CompetitionType } from '@/lib/competitions';
 import { PerformanceSparkline } from '@/components/portfolio/PerformanceChart';
@@ -138,6 +139,57 @@ function SkeletonRow() {
       </td>
       <td className="px-4 py-4"><div className="h-6 w-16 rounded shimmer" /></td>
     </tr>
+  );
+}
+
+function ShareButton({ address, score, rank }: { address: string; score: number; rank: number }) {
+  const [copied, setCopied] = useState(false);
+  
+  const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://portfolio-league.vercel.app';
+  const frameUrl = `${BASE_URL}/frame/${address}`;
+  const shareText = `Check out this portfolio on Portfolio League! ${score >= 0 ? '+' : ''}${score.toFixed(2)}% return, ranked #${rank}`;
+  
+  const handleShare = async () => {
+    // Try native share first
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Portfolio League',
+          text: shareText,
+          url: frameUrl,
+        });
+        return;
+      } catch {
+        // Fall through to clipboard
+      }
+    }
+    
+    // Fallback to clipboard
+    try {
+      await navigator.clipboard.writeText(`${shareText}\n${frameUrl}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleShare}
+      className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1.5 text-xs font-medium text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+      title={copied ? 'Copied!' : 'Share'}
+    >
+      {copied ? (
+        <svg className="h-3.5 w-3.5 text-accent-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      ) : (
+        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+        </svg>
+      )}
+    </button>
   );
 }
 
@@ -303,7 +355,7 @@ export default function EnhancedLeaderboard({
               <th className="px-4 py-3 w-24">Return</th>
               <th className="px-4 py-3 w-28">Trend</th>
               <th className="px-4 py-3">Portfolio</th>
-              <th className="px-4 py-3 w-20"></th>
+              <th className="px-4 py-3 w-32">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -354,10 +406,13 @@ export default function EnhancedLeaderboard({
                     <RankBadge rank={r.rank} />
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
+                    <Link
+                      href={`/profile/${r.user}`}
+                      className="flex items-center gap-3 group"
+                    >
                       <Avatar address={r.user} />
                       <div>
-                        <div className="font-mono text-sm font-medium text-white">
+                        <div className="font-mono text-sm font-medium text-white group-hover:text-base-blue transition-colors">
                           {shortenAddress(r.user)}
                         </div>
                         {r.winRate !== undefined && (
@@ -366,7 +421,7 @@ export default function EnhancedLeaderboard({
                           </div>
                         )}
                       </div>
-                    </div>
+                    </Link>
                   </td>
                   <td className="px-4 py-3">
                     <span className={`font-mono font-semibold ${isPositive ? 'text-accent-emerald' : 'text-accent-rose'}`}>
@@ -391,15 +446,27 @@ export default function EnhancedLeaderboard({
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <a
-                      href={`/compare?address=${r.user}`}
-                      className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-2.5 py-1.5 text-xs font-medium text-white/60 hover:bg-white/10 hover:text-white transition-colors"
-                    >
-                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                      </svg>
-                      Compare
-                    </a>
+                    <div className="flex items-center gap-1">
+                      <Link
+                        href={`/profile/${r.user}`}
+                        className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1.5 text-xs font-medium text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                        title="View Profile"
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                      </Link>
+                      <a
+                        href={`/compare?address=${r.user}`}
+                        className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1.5 text-xs font-medium text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                        title="Compare"
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                      </a>
+                      <ShareButton address={r.user} score={scoreValue} rank={r.rank} />
+                    </div>
                   </td>
                 </tr>
               );

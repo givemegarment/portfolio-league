@@ -7,6 +7,7 @@ import CoachPanel from '@/components/coach/CoachPanel';
 import AssetSelector from '@/components/portfolio/AssetSelector';
 import { SUPPORTED_ASSETS, getAsset, type Asset } from '@/lib/assets';
 import { type Suggestion } from '@/lib/ai-coach';
+import { playSuccessBeep, playErrorBeep } from '@/lib/sounds';
 
 type Allocation = { symbol: string; percentage: number };
 type PriceData = { price: number; change24h: number };
@@ -250,6 +251,7 @@ export default function PortfolioBuilder({ address }: Props) {
       const responseData = await res.json();
       
       setStatus({ type: 'success', message: 'Portfolio locked in! Good luck this week.' });
+      playSuccessBeep();
       
       // Track referral if this is first portfolio save and user was referred
       if (!hasSavedPortfolio && typeof window !== 'undefined') {
@@ -284,6 +286,7 @@ export default function PortfolioBuilder({ address }: Props) {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Something went wrong. Please try again.';
       setStatus({ type: 'error', message });
+      playErrorBeep();
     } finally {
       setSaving(false);
     }
@@ -489,28 +492,43 @@ export default function PortfolioBuilder({ address }: Props) {
               return (
                 <div
                   key={allocation.symbol}
-                  className="rounded-xl border border-white/5 bg-white/[0.02] p-4"
+                  className="rounded-xl border border-white/5 bg-white/[0.02] p-3 sm:p-4"
                 >
-                  <div className="flex items-center gap-4">
-                    {/* Asset info */}
-                    <div className="flex items-center gap-3 w-28">
-                      <div 
-                        className="flex h-8 w-8 items-center justify-center rounded-full"
-                        style={{ backgroundColor: `${asset.color}20` }}
-                      >
-                        <Image
-                          src={asset.logo}
-                          alt={asset.name}
-                          width={24}
-                          height={24}
-                          className="rounded-full"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                          }}
-                        />
+                  {/* Mobile: Stack layout, Desktop: Row layout */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                    {/* Asset info and remove button (mobile) */}
+                    <div className="flex items-center justify-between sm:justify-start sm:w-28">
+                      <div className="flex items-center gap-2 sm:gap-3">
+                        <div 
+                          className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full"
+                          style={{ backgroundColor: `${asset.color}20` }}
+                        >
+                          <Image
+                            src={asset.logo}
+                            alt={asset.name}
+                            width={24}
+                            height={24}
+                            className="rounded-full"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                        <span className="font-mono text-sm sm:text-base font-bold text-white">{asset.symbol}</span>
                       </div>
-                      <span className="font-mono font-bold text-white">{asset.symbol}</span>
+                      
+                      {/* Mobile remove button */}
+                      {allocations.length > 1 && !isLocked && (
+                        <button
+                          onClick={() => toggleAsset(allocation.symbol)}
+                          className="flex sm:hidden h-7 w-7 items-center justify-center rounded-lg text-white/30 hover:bg-accent-rose/10 hover:text-accent-rose transition-colors"
+                        >
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                     
                     {/* Slider */}
@@ -536,7 +554,7 @@ export default function PortfolioBuilder({ address }: Props) {
                     </div>
                     
                     {/* Controls */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center gap-2">
                       <button
                         onClick={() => updateAllocation(allocation.symbol, allocation.percentage - 5)}
                         disabled={isLocked}
@@ -554,7 +572,7 @@ export default function PortfolioBuilder({ address }: Props) {
                         value={allocation.percentage}
                         onChange={(e) => updateAllocation(allocation.symbol, parseInt(e.target.value) || 0)}
                         disabled={isLocked}
-                        className="w-16 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-center font-mono text-sm text-white focus:border-base-blue focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-14 sm:w-16 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-center font-mono text-sm text-white focus:border-base-blue focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       <span className="text-white/40">%</span>
                       
@@ -568,11 +586,11 @@ export default function PortfolioBuilder({ address }: Props) {
                         </svg>
                       </button>
                       
-                      {/* Remove button */}
+                      {/* Desktop remove button */}
                       {allocations.length > 1 && !isLocked && (
                         <button
                           onClick={() => toggleAsset(allocation.symbol)}
-                          className="flex h-8 w-8 items-center justify-center rounded-lg text-white/30 hover:bg-accent-rose/10 hover:text-accent-rose transition-colors"
+                          className="hidden sm:flex h-8 w-8 items-center justify-center rounded-lg text-white/30 hover:bg-accent-rose/10 hover:text-accent-rose transition-colors"
                         >
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

@@ -4,6 +4,9 @@ import StatCard from '@/components/profile/StatCard';
 import PortfolioHistoryList from '@/components/profile/PortfolioHistoryList';
 import AchievementBadges from '@/components/profile/AchievementBadges';
 import PerformanceChart from '@/components/portfolio/PerformanceChart';
+import ProfileShareButton from '@/components/profile/ProfileShareButton';
+import ReferralSummary from '@/components/profile/ReferralSummary';
+import EmailSubscription from '@/components/profile/EmailSubscription';
 
 type Props = {
   params: { address: string };
@@ -160,13 +163,43 @@ export default async function ProfilePage({ params }: Props) {
             </div>
 
             {/* Share button */}
-            <button className="rounded-xl bg-white/5 px-4 py-2 text-sm text-white/60 hover:bg-white/10 transition-colors">
-              <svg className="inline h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-              </svg>
-              Share
-            </button>
+            <ProfileShareButton
+              address={address}
+              score={stats?.totalReturn}
+              rank={stats?.bestRank}
+            />
           </div>
+
+          {/* Featured Achievements Showcase */}
+          {achievements.length > 0 && (
+            <div className="mt-6 border-t border-white/5 pt-6">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-medium uppercase tracking-wider text-white/40">
+                  Featured Badges
+                </span>
+                <span className="text-xs text-white/30">
+                  {achievements.length} earned
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-3 justify-center sm:justify-start">
+                {achievements.slice(0, 5).map((achievement: { id: string; icon: string; name: string; rarity: string }) => (
+                  <div
+                    key={achievement.id}
+                    className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2"
+                    title={achievement.name}
+                  >
+                    <span className="text-xl">{achievement.icon}</span>
+                    <span className="text-xs font-medium text-white/70">{achievement.name}</span>
+                  </div>
+                ))}
+                {achievements.length > 5 && (
+                  <div className="flex items-center rounded-xl bg-white/5 px-3 py-2">
+                    <span className="text-xs text-white/50">+{achievements.length - 5} more</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Stats Grid */}
@@ -232,15 +265,38 @@ export default async function ProfilePage({ params }: Props) {
             <PortfolioHistoryList entries={history} />
           </section>
 
-          {/* Achievements - 1 column */}
-          <section>
-            <h2 className="mb-4 text-lg font-bold text-white">Achievements</h2>
-            <AchievementBadges achievements={achievements} />
-          </section>
+          {/* Sidebar - 1 column */}
+          <div className="space-y-6">
+            {/* Achievements */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-white">Achievements</h2>
+                <span className="text-xs text-white/40">
+                  {achievements.length} / 8 unlocked
+                </span>
+              </div>
+              <div className="rounded-2xl border border-white/5 bg-surface-2 p-4">
+                <AchievementBadges achievements={achievements} showAll={true} />
+              </div>
+            </section>
+
+            {/* Referral Stats */}
+            <section>
+              <h2 className="mb-4 text-lg font-bold text-white">Referrals</h2>
+              <ReferralSummary address={address} />
+            </section>
+
+            {/* Email Notifications */}
+            <section>
+              <h2 className="mb-4 text-lg font-bold text-white">Notifications</h2>
+              <EmailSubscription address={address} />
+            </section>
+          </div>
         </div>
       </main>
     </div>
   );
 }
+
 
 

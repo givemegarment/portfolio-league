@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import NotificationBell from '@/components/NotificationBell';
+import SoundToggle from '@/components/chrome/SoundToggle';
+import ThemeToggle from '@/components/chrome/ThemeToggle';
 
 type WeekInfo = {
   season: string;
@@ -280,6 +282,12 @@ export default function Nav() {
               $1,000 Prize Pool
             </span>
           </div>
+
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
+          {/* Sound Toggle */}
+          <SoundToggle />
 
           {/* Notification Bell - only show when connected */}
           {isConnected && <NotificationBell />}

@@ -8,6 +8,8 @@ import Nav from '@/components/chrome/Nav';
 import TutorialModal from '@/components/onboarding/TutorialModal';
 import HomePageSkeleton from '@/components/home/HomePageSkeleton';
 import CountdownTimer from '@/components/home/CountdownTimer';
+import PastWinners from '@/components/home/PastWinners';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 type Stats = {
   totalPlayers: number;
@@ -141,7 +143,9 @@ export default function HomeClient() {
 
   return (
     <div className="min-h-screen">
-      <Nav />
+      <ErrorBoundary name="Nav">
+        <Nav />
+      </ErrorBoundary>
       <TutorialModal />
 
       <main className="mx-auto max-w-6xl px-4 py-8">
@@ -271,7 +275,16 @@ export default function HomeClient() {
 
         {/* Countdown Timer */}
         <section className="mb-8 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
-          <CountdownTimer />
+          <ErrorBoundary name="CountdownTimer">
+            <CountdownTimer />
+          </ErrorBoundary>
+        </section>
+
+        {/* Past Winners */}
+        <section className="mb-8 animate-fade-in-up" style={{ animationDelay: '175ms' }}>
+          <ErrorBoundary name="PastWinners">
+            <PastWinners />
+          </ErrorBoundary>
         </section>
 
         {/* Main Content Grid */}
@@ -282,7 +295,9 @@ export default function HomeClient() {
             style={{ animationDelay: '200ms' }}
           >
             <div className="rounded-2xl border border-white/5 bg-surface-2 p-6">
-              <PortfolioBuilder address={address} />
+              <ErrorBoundary name="PortfolioBuilder">
+                <PortfolioBuilder address={address} />
+              </ErrorBoundary>
             </div>
           </section>
 
@@ -292,7 +307,9 @@ export default function HomeClient() {
             style={{ animationDelay: '300ms' }}
           >
             {/* Leaderboard */}
-            <LeaderboardPreview />
+            <ErrorBoundary name="LeaderboardPreview">
+              <LeaderboardPreview />
+            </ErrorBoundary>
 
             {/* How It Works */}
             <div className="rounded-2xl border border-white/5 bg-surface-2 p-6">

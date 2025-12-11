@@ -71,27 +71,27 @@ function AllocationBadge({ symbol, percentage }: { symbol: string; percentage?: 
 function RankBadge({ rank }: { rank: number }) {
   if (rank === 1) {
     return (
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-sm font-bold text-black shadow-lg shadow-amber-500/30">
+      <div className="flex h-6 w-6 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-xs sm:text-sm font-bold text-black shadow-lg shadow-amber-500/30">
         1
       </div>
     );
   }
   if (rank === 2) {
     return (
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-gray-300 to-gray-400 text-sm font-bold text-black">
+      <div className="flex h-6 w-6 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-gradient-to-br from-gray-300 to-gray-400 text-xs sm:text-sm font-bold text-black">
         2
       </div>
     );
   }
   if (rank === 3) {
     return (
-      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-600 to-amber-800 text-sm font-bold text-white">
+      <div className="flex h-6 w-6 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-gradient-to-br from-amber-600 to-amber-800 text-xs sm:text-sm font-bold text-white">
         3
       </div>
     );
   }
   return (
-    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/5 text-sm font-medium text-white/60">
+    <div className="flex h-6 w-6 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/5 text-xs sm:text-sm font-medium text-white/60">
       {rank}
     </div>
   );
@@ -103,7 +103,7 @@ function Avatar({ address }: { address: string }) {
   
   return (
     <div 
-      className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold text-white"
+      className="flex h-7 w-7 sm:h-9 sm:w-9 items-center justify-center rounded-full text-[10px] sm:text-xs font-bold text-white shrink-0"
       style={{ backgroundColor: color }}
     >
       {initials}
@@ -143,15 +143,34 @@ export default function LeaderboardPreview() {
   useEffect(() => {
     let alive = true;
     
-    const fetchLeaderboard = () => {
-      fetch('/api/leaderboard?limit=10')
-        .then((r) => r.json())
-        .then((data: Row[]) => {
-          if (alive) setRows(Array.isArray(data) ? data : []);
-        })
-        .catch(() => {
-          if (alive) setErr('Failed to load leaderboard');
-        });
+    const fetchLeaderboard = async () => {
+      try {
+        console.log('[LeaderboardPreview] Fetching leaderboard...');
+        const response = await fetch('/api/leaderboard?limit=10');
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('[LeaderboardPreview] API error:', response.status, errorData);
+          if (alive) setErr(`Failed to load leaderboard (${response.status})`);
+          return;
+        }
+        
+        const data = await response.json();
+        console.log('[LeaderboardPreview] Received data:', Array.isArray(data) ? `${data.length} rows` : 'not an array');
+        
+        if (alive) {
+          if (Array.isArray(data)) {
+            setRows(data);
+          } else if (data.error) {
+            setErr(data.error);
+          } else {
+            setRows([]);
+          }
+        }
+      } catch (error) {
+        console.error('[LeaderboardPreview] Fetch error:', error);
+        if (alive) setErr('Failed to load leaderboard');
+      }
     };
 
     fetchLeaderboard();
@@ -207,10 +226,10 @@ export default function LeaderboardPreview() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-white/5 text-left text-xs font-medium uppercase tracking-wider text-white/40">
-              <th className="px-4 py-3 w-16">Rank</th>
-              <th className="px-4 py-3">Player</th>
-              <th className="px-4 py-3 w-24">Return</th>
-              <th className="px-4 py-3">Portfolio</th>
+              <th className="px-2 sm:px-4 py-3 w-12 sm:w-16">Rank</th>
+              <th className="px-2 sm:px-4 py-3">Player</th>
+              <th className="px-2 sm:px-4 py-3 w-20 sm:w-24">Return</th>
+              <th className="px-2 sm:px-4 py-3 hidden md:table-cell">Portfolio</th>
             </tr>
           </thead>
           <tbody className="stagger-children">
@@ -253,30 +272,30 @@ export default function LeaderboardPreview() {
                   `}
                   style={{ animationDelay: `${idx * 50}ms` }}
                 >
-                  <td className="px-4 py-3">
+                  <td className="px-2 sm:px-4 py-3">
                     <RankBadge rank={r.rank} />
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
+                  <td className="px-2 sm:px-4 py-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <Avatar address={r.user} />
-                      <div>
-                        <div className="font-mono text-sm font-medium text-white">
+                      <div className="min-w-0">
+                        <div className="font-mono text-xs sm:text-sm font-medium text-white truncate">
                           {shortenAddress(r.user)}
                         </div>
                         {isTopThree && (
-                          <div className="text-xs text-white/30">
+                          <div className="text-xs text-white/30 hidden sm:block">
                             {r.rank === 1 ? 'Leading' : r.rank === 2 ? '2nd Place' : '3rd Place'}
                           </div>
                         )}
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`font-mono font-semibold ${isPositive ? 'text-accent-emerald' : 'text-accent-rose'}`}>
+                  <td className="px-2 sm:px-4 py-3">
+                    <span className={`font-mono text-sm sm:text-base font-semibold ${isPositive ? 'text-accent-emerald' : 'text-accent-rose'}`}>
                       {isPositive ? '+' : ''}{scoreValue.toFixed(2)}%
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-2 sm:px-4 py-3 hidden md:table-cell">
                     <div className="flex flex-wrap gap-1">
                       {r.allocations?.map((a, i) => (
                         <AllocationBadge 
