@@ -18,3 +18,4 @@ export default function ProfileShareButton({ address, score, rank }: Props) {
   );
 }
 
+

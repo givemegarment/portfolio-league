@@ -20,7 +20,7 @@ type State = {
 // Create Frog app
 const app = new Frog<{ State: State }>({
   basePath: '/api/frames',
-  title: 'Portfolio League',
+  title: 'Imitatio',
   initialState: { page: 0 },
   imageOptions: {
     width: 1200,
@@ -105,13 +105,13 @@ app.frame('/', async (c) => {
               <span style={{ fontSize: '48px' }}>🏆</span>
             </div>
             <span style={{ color: 'white', fontSize: '56px', fontWeight: 800 }}>
-              Portfolio League
+              Imitatio
             </span>
           </div>
 
           {/* Tagline */}
           <div style={{ display: 'flex', fontSize: '64px', fontWeight: 800, marginBottom: '24px' }}>
-            <span style={{ color: 'white' }}>Pick. Compete. </span>
+            <span style={{ color: 'white' }}>Emulate. Compete. </span>
             <span style={{ color: '#10b981' }}>Win.</span>
           </div>
 
@@ -624,7 +624,7 @@ app.frame('/portfolio/:address', async (c) => {
             Season {weekInfo.season} • Week {weekInfo.week}
           </span>
           <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '16px' }}>
-            portfolio-league.vercel.app
+            imitatio.app
           </span>
         </div>
       </div>

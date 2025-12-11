@@ -28,7 +28,7 @@ export default function TermsPage() {
           <section className="rounded-2xl border border-white/5 bg-surface-2 p-6">
             <h2 className="mb-4 text-xl font-bold text-white">1. Introduction</h2>
             <p className="text-sm leading-relaxed text-white/60">
-              Welcome to Portfolio League. By accessing or using our platform, you agree to be bound by these Terms of Service. Portfolio League is a gamified portfolio competition platform built on Base. Please read these terms carefully before participating.
+              Welcome to Imitatio. By accessing or using our platform, you agree to be bound by these Terms of Service. Imitatio is a gamified portfolio competition platform built on Base, inspired by the classical principle of learning through emulation. Please read these terms carefully before participating.
             </p>
           </section>
 
@@ -36,7 +36,7 @@ export default function TermsPage() {
           <section className="rounded-2xl border border-white/5 bg-surface-2 p-6">
             <h2 className="mb-4 text-xl font-bold text-white">2. Eligibility</h2>
             <div className="space-y-3 text-sm leading-relaxed text-white/60">
-              <p>To use Portfolio League, you must:</p>
+              <p>To use Imitatio, you must:</p>
               <ul className="list-inside list-disc space-y-2 pl-4">
                 <li>Be at least 18 years of age or the age of majority in your jurisdiction</li>
                 <li>Have the legal capacity to enter into binding agreements</li>
@@ -54,7 +54,7 @@ export default function TermsPage() {
             <h2 className="mb-4 text-xl font-bold text-accent-amber">3. No Financial Advice</h2>
             <div className="space-y-3 text-sm leading-relaxed text-white/60">
               <p className="font-medium text-white">
-                Portfolio League is for entertainment purposes only.
+                Imitatio is for entertainment purposes only.
               </p>
               <p>
                 Nothing on this platform constitutes financial, investment, legal, or tax advice. The simulated portfolio selections and their performance do not reflect real trading outcomes and should not be used as the basis for any investment decisions.
@@ -69,10 +69,10 @@ export default function TermsPage() {
           <section className="rounded-2xl border border-white/5 bg-surface-2 p-6">
             <h2 className="mb-4 text-xl font-bold text-white">4. Competition Rules & Prizes</h2>
             <div className="space-y-3 text-sm leading-relaxed text-white/60">
-              <p>By participating in Portfolio League competitions:</p>
+              <p>By participating in Imitatio competitions:</p>
               <ul className="list-inside list-disc space-y-2 pl-4">
                 <li>You agree to abide by all game rules and deadlines</li>
-                <li>Prize distribution is at the sole discretion of Portfolio League</li>
+                <li>Prize distribution is at the sole discretion of Imitatio</li>
                 <li>We reserve the right to modify prize pools, rules, or competition structures</li>
                 <li>Manipulation, cheating, or exploiting bugs will result in disqualification</li>
                 <li>Prizes may be subject to taxes in your jurisdiction—you are solely responsible for tax obligations</li>
@@ -104,10 +104,10 @@ export default function TermsPage() {
             <h2 className="mb-4 text-xl font-bold text-white">6. Intellectual Property</h2>
             <div className="space-y-3 text-sm leading-relaxed text-white/60">
               <p>
-                All content, trademarks, logos, and intellectual property on Portfolio League are owned by or licensed to us. You may not copy, modify, distribute, or create derivative works without express written permission.
+                All content, trademarks, logos, and intellectual property on Imitatio are owned by or licensed to us. You may not copy, modify, distribute, or create derivative works without express written permission.
               </p>
               <p>
-                NFT trophies minted through the platform grant you ownership of the token itself, but not the underlying intellectual property or artwork, which remains with Portfolio League.
+                NFT trophies minted through the platform grant you ownership of the token itself, but not the underlying intellectual property or artwork, which remains with Imitatio.
               </p>
             </div>
           </section>
@@ -117,7 +117,7 @@ export default function TermsPage() {
             <h2 className="mb-4 text-xl font-bold text-white">7. Limitation of Liability</h2>
             <div className="space-y-3 text-sm leading-relaxed text-white/60">
               <p>
-                TO THE MAXIMUM EXTENT PERMITTED BY LAW, PORTFOLIO LEAGUE AND ITS AFFILIATES SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS, DATA, OR GOODWILL.
+                TO THE MAXIMUM EXTENT PERMITTED BY LAW, IMITATIO AND ITS AFFILIATES SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS, DATA, OR GOODWILL.
               </p>
               <p>
                 The platform is provided &quot;as is&quot; and &quot;as available&quot; without warranties of any kind. We do not guarantee uninterrupted access, accuracy of price data, or error-free operation.
@@ -142,7 +142,7 @@ export default function TermsPage() {
           <section className="rounded-2xl border border-white/5 bg-surface-2 p-6">
             <h2 className="mb-4 text-xl font-bold text-white">9. Modifications</h2>
             <p className="text-sm leading-relaxed text-white/60">
-              We reserve the right to modify these Terms of Service at any time. Changes will be effective upon posting to the platform. Your continued use of Portfolio League after changes are posted constitutes acceptance of the revised terms.
+              We reserve the right to modify these Terms of Service at any time. Changes will be effective upon posting to the platform. Your continued use of Imitatio after changes are posted constitutes acceptance of the revised terms.
             </p>
           </section>
 
@@ -178,5 +178,6 @@ export default function TermsPage() {
     </div>
   );
 }
+
 
 

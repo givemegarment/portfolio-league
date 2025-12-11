@@ -1,7 +1,7 @@
 /**
  * Trophy contract interaction helpers
  * 
- * For use with the PortfolioLeagueTrophies soulbound NFT contract
+ * For use with the ImitatiaTrophies soulbound NFT contract
  */
 
 import { type Address } from 'viem';
@@ -35,7 +35,7 @@ export const TROPHY_METADATA: Record<TrophyType, {
   },
   [TrophyType.SEASON_CHAMPION]: {
     name: 'Season Champion',
-    description: 'Won a full season of Portfolio League',
+    description: 'Won a full season of Imitatio',
     emoji: '🏆',
     rarity: 'legendary',
   },

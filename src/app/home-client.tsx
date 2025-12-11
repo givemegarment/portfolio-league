@@ -92,7 +92,7 @@ export default function HomeClient() {
     
     if (refCode) {
       // Store in localStorage for later tracking
-      localStorage.setItem('portfolio_league_ref', refCode);
+      localStorage.setItem('imitatio_ref', refCode);
       
       // Clean URL without losing other params
       urlParams.delete('ref');
@@ -386,7 +386,7 @@ export default function HomeClient() {
           </div>
 
           <div className="mt-6 text-center text-xs text-white/20">
-            © 2025 Portfolio League. All rights reserved.
+            © 2025 Imitatio. All rights reserved.
           </div>
         </footer>
       </main>

@@ -66,3 +66,4 @@ export type PrizePoolConfig = {
   sponsoredBy?: string;
 };
 
+

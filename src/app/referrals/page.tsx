@@ -17,7 +17,7 @@ export default function ReferralsPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white">Referrals & Bonuses</h1>
           <p className="mt-2 text-white/50">
-            Invite friends to Portfolio League and earn bonus points for each successful referral
+            Invite friends to Imitatio and earn bonus points for each successful referral
           </p>
         </div>
 
@@ -80,7 +80,7 @@ export default function ReferralsPage() {
             <p>
               Bonus points are earned through referrals and special achievements. While they don&apos;t affect 
               your weekly portfolio performance score, they contribute to your overall standing in the 
-              Portfolio League ecosystem.
+              Imitatio ecosystem.
             </p>
             <p>
               Future seasons may include exclusive rewards, NFT badges, or prize pool multipliers 
@@ -98,13 +98,14 @@ export default function ReferralsPage() {
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            Back to Portfolio League
+            Back to Imitatio
           </a>
         </div>
       </main>
     </div>
   );
 }
+
 
 
 

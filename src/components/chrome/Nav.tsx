@@ -255,7 +255,7 @@ export default function Nav() {
             <div className="relative flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-base-blue to-purple-600">
               <Image
                 src="/logo.svg"
-                alt="Portfolio League"
+                alt="Imitatio"
                 width={24}
                 height={24}
                 className="brightness-0 invert"
@@ -263,7 +263,7 @@ export default function Nav() {
             </div>
           </div>
           <div className="hidden sm:block">
-            <div className="font-bold text-white">Portfolio League</div>
+            <div className="font-bold text-white">Imitatio</div>
             <SeasonWeekBadge />
           </div>
         </Link>

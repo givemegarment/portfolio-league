@@ -9,7 +9,7 @@ type Props = {
   rank?: number;
 };
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://portfolio-league.vercel.app';
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://imitatio.app';
 
 export default function ShareButtons({ address, allocations, score, rank }: Props) {
   const [copied, setCopied] = useState(false);
@@ -57,8 +57,8 @@ export default function ShareButtons({ address, allocations, score, rank }: Prop
 
   // Share text
   const shareText = score !== undefined
-    ? `My portfolio is ${score >= 0 ? '+' : ''}${score.toFixed(2)}% this week on Portfolio League! 🎯 Think you can beat it?`
-    : `Check out my Portfolio League picks! 🎯 Think you can beat it?`;
+    ? `My portfolio is ${score >= 0 ? '+' : ''}${score.toFixed(2)}% this week on Imitatio! 🎯 Think you can beat it?`
+    : `Check out my Imitatio picks! 🎯 Think you can beat it?`;
 
   // Warpcast share URL - uses embeds[] for rich Frame preview
   const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(frameUrl)}`;

@@ -1,7 +1,7 @@
 // Mini-app configuration for Base App Directory
 // Follow: https://docs.base.org/mini-apps/quickstart/create-new-miniapp
 
-const ROOT_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://portfolio-league.vercel.app';
+const ROOT_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://imitatio.app';
 
 export const minikitConfig = {
   // Account association - generate at https://base.dev/sign-manifest
@@ -14,9 +14,9 @@ export const minikitConfig = {
   
   miniapp: {
     version: '1',
-    name: 'Portfolio League',
-    subtitle: 'Crypto Portfolio Competition',
-    description: 'Pick 3 crypto assets each week. Compete against other traders. Top 10% share the $1,000 prize pool. Built on Base.',
+    name: 'Imitatio',
+    subtitle: 'Master Portfolio Strategy',
+    description: 'Master the art of portfolio strategy. Emulate the best traders, compete weekly, win prizes. The ultimate on-chain portfolio game on Base.',
     
     // Images - ensure these files exist in /public
     iconUrl: `${ROOT_URL}/icon-512.png`,
@@ -36,14 +36,15 @@ export const minikitConfig = {
     tags: ['trading', 'competition', 'defi', 'portfolio', 'crypto'],
     
     // Open Graph metadata
-    tagline: 'Pick. Compete. Win.',
-    ogTitle: 'Portfolio League - Crypto Portfolio Competition',
-    ogDescription: 'Pick 3 assets, compete weekly, win prizes. The ultimate social crypto game on Base.',
+    tagline: 'Emulate. Compete. Win.',
+    ogTitle: 'Imitatio - Master Portfolio Strategy',
+    ogDescription: 'Master portfolio strategy. Emulate the best, compete weekly, win prizes on Base.',
     ogImageUrl: `${ROOT_URL}/og.svg`,
   },
 } as const;
 
 export default minikitConfig;
+
 
 
 

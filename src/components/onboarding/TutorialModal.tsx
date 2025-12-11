@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-const STORAGE_KEY = 'portfolio_league_tutorial_completed';
+const STORAGE_KEY = 'imitatio_tutorial_completed';
 
 type TutorialStep = {
   title: string;
@@ -13,8 +13,8 @@ type TutorialStep = {
 
 const TUTORIAL_STEPS: TutorialStep[] = [
   {
-    title: 'Welcome to Portfolio League!',
-    description: 'Compete with other traders by building the best crypto portfolio. Pick your assets, set allocations, and see who comes out on top!',
+    title: 'Welcome to Imitatio!',
+    description: 'Master the art of portfolio strategy by emulating the best traders. Pick your assets, set allocations, and see who comes out on top!',
     icon: (
       <svg className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -244,6 +244,7 @@ export function useTutorial() {
     hasCompletedTutorial,
   };
 }
+
 
 
 

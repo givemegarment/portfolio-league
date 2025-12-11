@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://portfolio-league.vercel.app';
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://imitatio.app';
 
 type LeaderboardEntry = {
   rank: number;
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ color: 'white', fontSize: '28px', fontWeight: 700 }}>
-                Portfolio League
+                Imitatio
               </span>
               <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '16px' }}>
                 Weekly Leaderboard

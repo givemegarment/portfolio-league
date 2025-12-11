@@ -107,7 +107,7 @@ export default function HowToPlayPage() {
             How to Play
           </h1>
           <p className="mt-4 text-lg text-white/60">
-            Master Portfolio League in 6 simple steps
+            Master Imitatio in 6 simple steps
           </p>
         </div>
 
@@ -288,5 +288,6 @@ export default function HowToPlayPage() {
     </div>
   );
 }
+
 
 

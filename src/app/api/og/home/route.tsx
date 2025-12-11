@@ -75,7 +75,7 @@ export async function GET() {
               </svg>
             </div>
             <span style={{ color: 'white', fontSize: '56px', fontWeight: 800 }}>
-              Portfolio League
+              Imitatio
             </span>
           </div>
 
@@ -174,7 +174,7 @@ export async function GET() {
             fontSize: '18px',
           }}
         >
-          portfolio-league.vercel.app
+          imitatio.app
         </div>
       </div>
     ),

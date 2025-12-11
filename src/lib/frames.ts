@@ -2,7 +2,7 @@
  * Shared utilities for Farcaster Frames
  */
 
-export const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://portfolio-league.vercel.app';
+export const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://imitatio.app';
 
 // Asset colors for portfolio visualization
 export const ASSET_COLORS: Record<string, string> = {
@@ -104,6 +104,7 @@ export async function getWeekInfo(): Promise<{
   }
   return { season: '1', week: 1 };
 }
+
 
 
 

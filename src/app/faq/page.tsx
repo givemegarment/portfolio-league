@@ -10,8 +10,8 @@ type FAQItem = {
 
 const faqs: FAQItem[] = [
   {
-    question: 'How do I play Portfolio League?',
-    answer: 'Portfolio League is simple: connect your wallet, select up to 3 crypto assets, allocate percentages that total 100%, and submit before the weekly deadline (Sunday 23:59 UTC). Your portfolio performance is tracked against other players, and the top 10% share the prize pool.',
+    question: 'How do I play Imitatio?',
+    answer: 'Imitatio is simple: connect your wallet, select up to 3 crypto assets, allocate percentages that total 100%, and submit before the weekly deadline (Sunday 23:59 UTC). Your portfolio performance is tracked against other players, and the top 10% share the prize pool.',
   },
   {
     question: 'How do I connect my wallet?',
@@ -47,7 +47,7 @@ const faqs: FAQItem[] = [
   },
   {
     question: 'Is this financial advice?',
-    answer: 'No. Portfolio League is a game for entertainment purposes only. Performance in the game does not reflect real trading outcomes. Always do your own research before making any real investment decisions. See our Terms of Service for full disclaimers.',
+    answer: 'No. Imitatio is a game for entertainment purposes only. Performance in the game does not reflect real trading outcomes. Always do your own research before making any real investment decisions. See our Terms of Service for full disclaimers.',
   },
 ];
 
@@ -96,7 +96,7 @@ export default function FAQPage() {
             Frequently Asked Questions
           </h1>
           <p className="mt-4 text-lg text-white/60">
-            Everything you need to know about Portfolio League
+            Everything you need to know about Imitatio
           </p>
         </div>
 
@@ -141,5 +141,6 @@ export default function FAQPage() {
     </div>
   );
 }
+
 
 
