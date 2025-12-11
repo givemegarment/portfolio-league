@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Store in Redis (using address as key for easy lookup)
-    await redis.hset(EMAIL_SUBSCRIPTIONS_KEY, address.toLowerCase(), JSON.stringify(subscription));
+    await redis.hset(EMAIL_SUBSCRIPTIONS_KEY, { [address.toLowerCase()]: JSON.stringify(subscription) });
 
     // Send welcome email
     await sendWelcomeEmail({ email: subscription.email, address: subscription.address });
@@ -108,3 +108,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
