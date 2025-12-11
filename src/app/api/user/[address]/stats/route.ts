@@ -110,7 +110,8 @@ export async function GET(
     // Iterate through all competition weeks
     for (const key of allKeys) {
       // Get all portfolios to do case-insensitive address lookup
-      const allPortfolios = await redis.hgetall<Record<string, string>>(key);
+      // @upstash/redis auto-deserializes JSON, so we get objects directly
+      const allPortfolios = await redis.hgetall<Record<string, StoredPortfolio>>(key);
       
       if (!allPortfolios) continue;
       
@@ -121,13 +122,11 @@ export async function GET(
       
       if (!userAddressKey) continue;
       
-      const data = allPortfolios[userAddressKey];
+      // @upstash/redis auto-deserializes, so data is already an object
+      const portfolio = allPortfolios[userAddressKey] as StoredPortfolio;
       
       stats.totalCompetitions++;
 
-      // Parse the portfolio data
-      const portfolio: StoredPortfolio = typeof data === 'string' ? JSON.parse(data) : data;
-      
       // Track timestamp for join date / last active
       if (portfolio.timestamp) {
         if (!stats.joinDate || portfolio.timestamp < stats.joinDate) {
@@ -150,9 +149,10 @@ export async function GET(
       // Calculate scores for all participants to determine rank
       const scores: { address: string; score: number }[] = [];
       
-      for (const [userAddr, portfolioJson] of Object.entries(allPortfolios)) {
+      for (const [userAddr, portfolioData] of Object.entries(allPortfolios)) {
         try {
-          const userPortfolio: StoredPortfolio = JSON.parse(portfolioJson);
+          // @upstash/redis auto-deserializes, so portfolioData is already an object
+          const userPortfolio = portfolioData as StoredPortfolio;
           
           if (userPortfolio.entryPrices && Object.keys(userPortfolio.entryPrices).length > 0) {
             const result = calculateScore(userPortfolio, currentPrices);

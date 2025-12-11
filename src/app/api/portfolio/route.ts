@@ -143,17 +143,18 @@ export async function POST(req: Request) {
   console.log(`[Portfolio Save] Entry prices:`, entryPrices);
 
   try {
-    // Save to Redis
+    // Save to Redis - @upstash/redis auto-serializes objects, so don't use JSON.stringify
     await redis.hset(weekKey, {
-      [body.address]: JSON.stringify(portfolioData),
+      [body.address]: portfolioData,
     });
     
     console.log(`[Portfolio Save] Write completed, now verifying...`);
     
     // CRITICAL: Verify the write was successful by reading it back
-    const verification = await redis.hget<string>(weekKey, body.address);
+    // @upstash/redis auto-deserializes, so we get an object back
+    const verifiedData = await redis.hget<StoredPortfolio>(weekKey, body.address);
     
-    if (!verification) {
+    if (!verifiedData) {
       console.error(`[Portfolio Save] VERIFICATION FAILED: Data not found after write for ${body.address}`);
       return NextResponse.json(
         { error: 'Portfolio save failed verification. Data was not persisted. Please try again.' },
@@ -161,8 +162,7 @@ export async function POST(req: Request) {
       );
     }
     
-    // Parse and verify the data matches what we saved
-    const verifiedData = JSON.parse(verification);
+    // Verify the data matches what we saved
     if (!verifiedData.allocations || verifiedData.allocations.length !== allocations.length) {
       console.error(`[Portfolio Save] VERIFICATION FAILED: Data mismatch for ${body.address}`);
       console.error(`[Portfolio Save] Expected:`, portfolioData);
@@ -216,13 +216,14 @@ export async function GET(req: Request) {
   let redisError = false;
 
   try {
+    // @upstash/redis auto-deserializes JSON, so we get objects back directly
     // First try exact match, then try case-insensitive lookup
-    let value = await redis.hget<string>(weekKey, address);
+    let value = await redis.hget<StoredPortfolio | string[]>(weekKey, address);
     
     // If not found, try case-insensitive lookup
     if (!value) {
       console.log(`[Portfolio GET] Exact match not found, trying case-insensitive lookup...`);
-      const allPortfolios = await redis.hgetall<Record<string, string>>(weekKey);
+      const allPortfolios = await redis.hgetall<Record<string, StoredPortfolio | string[]>>(weekKey);
       if (allPortfolios) {
         const matchingKey = Object.keys(allPortfolios).find(
           key => key.toLowerCase() === address.toLowerCase()
@@ -236,40 +237,48 @@ export async function GET(req: Request) {
 
     if (value) {
       console.log(`[Portfolio GET] Found portfolio data for ${address}`);
-      try {
-        const parsed = JSON.parse(value);
+      
+      // Handle new format with entryPrices (already deserialized by @upstash/redis)
+      if (typeof value === 'object' && !Array.isArray(value) && value.allocations && Array.isArray(value.allocations)) {
+        portfolio = value as StoredPortfolio;
+        basket = portfolio.allocations.map((a: AllocationItem) => a.symbol);
+        console.log(`[Portfolio GET] Loaded portfolio with ${portfolio.allocations.length} allocations`);
+      }
+      // Handle legacy format (just array of symbols)
+      else if (Array.isArray(value)) {
+        basket = value as string[];
+        const equalWeight = Math.floor(100 / basket.length);
+        const remainder = 100 - (equalWeight * basket.length);
         
-        // Handle new format with entryPrices
-        if (parsed.allocations && Array.isArray(parsed.allocations)) {
-          portfolio = parsed as StoredPortfolio;
-          basket = parsed.allocations.map((a: AllocationItem) => a.symbol);
-          console.log(`[Portfolio GET] Parsed portfolio with ${portfolio.allocations.length} allocations`);
+        portfolio = {
+          allocations: basket.map((symbol, idx) => ({
+            symbol,
+            percentage: equalWeight + (idx === 0 ? remainder : 0),
+          })),
+          entryPrices: {}, // No entry prices for legacy data
+          timestamp: 0,
+        };
+        console.log(`[Portfolio GET] Loaded legacy format with ${basket.length} symbols`);
+      }
+      // Handle string data (corrupted/legacy) - try to parse it
+      else if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value);
+          if (parsed.allocations && Array.isArray(parsed.allocations)) {
+            portfolio = parsed as StoredPortfolio;
+            basket = parsed.allocations.map((a: AllocationItem) => a.symbol);
+            console.log(`[Portfolio GET] Parsed string portfolio with ${portfolio.allocations.length} allocations`);
+          }
+        } catch (parseError) {
+          console.error(`[Portfolio GET] Failed to parse string portfolio data:`, parseError);
         }
-        // Handle legacy format (just array of symbols)
-        else if (Array.isArray(parsed)) {
-          basket = parsed as string[];
-          const equalWeight = Math.floor(100 / basket.length);
-          const remainder = 100 - (equalWeight * basket.length);
-          
-          portfolio = {
-            allocations: basket.map((symbol, idx) => ({
-              symbol,
-              percentage: equalWeight + (idx === 0 ? remainder : 0),
-            })),
-            entryPrices: {}, // No entry prices for legacy data
-            timestamp: 0,
-          };
-          console.log(`[Portfolio GET] Parsed legacy format with ${basket.length} symbols`);
-        }
-      } catch (parseError) {
-        console.error(`[Portfolio GET] Failed to parse portfolio data:`, parseError);
       }
     } else {
       console.log(`[Portfolio GET] No portfolio found for ${address} in ${weekKey}`);
       
       // Debug: List all addresses in this week's portfolios
       try {
-        const allPortfolios = await redis.hgetall<Record<string, string>>(weekKey);
+        const allPortfolios = await redis.hgetall<Record<string, unknown>>(weekKey);
         if (allPortfolios) {
           const addresses = Object.keys(allPortfolios);
           console.log(`[Portfolio GET] Total portfolios in ${weekKey}: ${addresses.length}`);

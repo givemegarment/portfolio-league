@@ -58,10 +58,11 @@ export async function GET(req: Request) {
   console.log(`[Leaderboard] Fetching portfolios for ${weekKey}`);
 
   // Fetch all portfolios for this week
-  let allPortfolios: Record<string, string> | null = null;
+  // @upstash/redis auto-deserializes JSON, so we get objects directly
+  let allPortfolios: Record<string, StoredPortfolio | string[]> | null = null;
   
   try {
-    allPortfolios = await redis.hgetall<Record<string, string>>(weekKey);
+    allPortfolios = await redis.hgetall<Record<string, StoredPortfolio | string[]>>(weekKey);
     console.log(`[Leaderboard] Found ${allPortfolios ? Object.keys(allPortfolios).length : 0} portfolios`);
   } catch (error) {
     console.error('[Leaderboard] Redis error:', error);
@@ -83,29 +84,28 @@ export async function GET(req: Request) {
     score: number;
   }> = [];
 
-  for (const [address, portfolioJson] of Object.entries(allPortfolios)) {
+  for (const [address, portfolioData] of Object.entries(allPortfolios)) {
     try {
-      const parsed = JSON.parse(portfolioJson);
-      
+      // @upstash/redis auto-deserializes, so portfolioData is already an object
       let portfolio: StoredPortfolio;
       
-      // Handle new format with entryPrices
-      if (parsed.allocations && parsed.entryPrices) {
-        portfolio = parsed as StoredPortfolio;
+      // Handle new format with entryPrices (already deserialized)
+      if (typeof portfolioData === 'object' && !Array.isArray(portfolioData) && portfolioData.allocations && portfolioData.entryPrices) {
+        portfolio = portfolioData as StoredPortfolio;
       }
       // Handle legacy format without entryPrices
-      else if (parsed.allocations && Array.isArray(parsed.allocations)) {
+      else if (typeof portfolioData === 'object' && !Array.isArray(portfolioData) && portfolioData.allocations && Array.isArray(portfolioData.allocations)) {
         // For legacy data without entry prices, we can't calculate real scores
         // Use 0 as score or skip
         portfolio = {
-          allocations: parsed.allocations,
+          allocations: portfolioData.allocations,
           entryPrices: {},
-          timestamp: parsed.timestamp || 0,
+          timestamp: portfolioData.timestamp || 0,
         };
       }
       // Handle very old format (just array of symbols)
-      else if (Array.isArray(parsed)) {
-        const symbols = parsed as string[];
+      else if (Array.isArray(portfolioData)) {
+        const symbols = portfolioData as string[];
         const equalWeight = Math.floor(100 / symbols.length);
         const remainder = 100 - (equalWeight * symbols.length);
         
@@ -138,7 +138,7 @@ export async function GET(req: Request) {
         score,
       });
     } catch (error) {
-      console.error(`Error parsing portfolio for ${address}:`, error);
+      console.error(`Error processing portfolio for ${address}:`, error);
       continue;
     }
   }
@@ -189,8 +189,9 @@ export async function POST(req: Request) {
     timestamp: Date.now(),
   };
 
+  // @upstash/redis auto-serializes objects, so don't use JSON.stringify
   await redis.hset(weekKey, {
-    [body.user]: JSON.stringify(portfolioData),
+    [body.user]: portfolioData,
   });
 
   return NextResponse.json({ ok: true, message: 'Portfolio saved via leaderboard API (deprecated)' });

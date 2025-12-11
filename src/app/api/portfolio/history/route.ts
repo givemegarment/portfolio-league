@@ -104,13 +104,14 @@ export async function GET(req: Request) {
 
     try {
       // Get all portfolios for this week to calculate rank
-      const allPortfolios = await redis.hgetall<Record<string, string>>(key);
+      // @upstash/redis auto-deserializes JSON, so we get objects directly
+      const allPortfolios = await redis.hgetall<Record<string, StoredPortfolio>>(key);
       
       if (!allPortfolios) continue;
       
       // Find the user's address key (case-insensitive) since Ethereum addresses are case-insensitive
       const userAddressKey = Object.keys(allPortfolios).find(
-        (key) => key.toLowerCase() === address.toLowerCase()
+        (k) => k.toLowerCase() === address.toLowerCase()
       );
       
       if (!userAddressKey) continue;
@@ -120,9 +121,10 @@ export async function GET(req: Request) {
       // Calculate scores for all participants to determine rank
       const scores: { address: string; score: number }[] = [];
       
-      for (const [userAddress, portfolioJson] of Object.entries(allPortfolios)) {
+      for (const [userAddress, portfolioData] of Object.entries(allPortfolios)) {
         try {
-          const userPortfolio: StoredPortfolio = JSON.parse(portfolioJson);
+          // @upstash/redis auto-deserializes, so portfolioData is already an object
+          const userPortfolio = portfolioData as StoredPortfolio;
           
           if (userPortfolio.entryPrices && Object.keys(userPortfolio.entryPrices).length > 0) {
             const result = calculateScore(userPortfolio, currentPrices);
@@ -144,7 +146,7 @@ export async function GET(req: Request) {
       ) + 1;
       
       // Get user's portfolio and score using the actual key from Redis
-      const portfolio: StoredPortfolio = JSON.parse(allPortfolios[userAddressKey]);
+      const portfolio = allPortfolios[userAddressKey] as StoredPortfolio;
       const userScore = scores.find(
         (s) => s.address.toLowerCase() === address.toLowerCase()
       )?.score || 0;
@@ -160,7 +162,7 @@ export async function GET(req: Request) {
         totalParticipants,
       });
     } catch (error) {
-      console.error(`Error parsing portfolio for key ${key}:`, error);
+      console.error(`Error processing portfolio for key ${key}:`, error);
       continue;
     }
   }
