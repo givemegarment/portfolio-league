@@ -42,8 +42,32 @@ async function getPlayerStats(address: string) {
   }
 }
 
+// Type for API response
+type HistoricalPortfolio = {
+  season: string;
+  week: number;
+  allocations: { symbol: string; percentage: number }[];
+  entryPrices: Record<string, number>;
+  timestamp: number;
+  finalScore?: number;
+  rank?: number;
+  totalParticipants?: number;
+};
+
+// Type for PortfolioHistoryList component
+type HistoryEntry = {
+  id: string;
+  week: string;
+  season: string;
+  rank: number;
+  totalParticipants: number;
+  score: number;
+  allocations: { symbol: string; percentage: number }[];
+  timestamp: number;
+};
+
 // Fetch portfolio history
-async function getPortfolioHistory(address: string) {
+async function getPortfolioHistory(address: string): Promise<HistoryEntry[]> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
   
   try {
@@ -56,7 +80,19 @@ async function getPortfolioHistory(address: string) {
     }
     
     const data = await response.json();
-    return data.entries || [];
+    const history: HistoricalPortfolio[] = data.history || [];
+    
+    // Transform API response to PortfolioHistoryList format
+    return history.map((entry) => ({
+      id: `${entry.season}-${entry.week}-${entry.timestamp}`,
+      week: String(entry.week),
+      season: entry.season.replace('s', 'Season '),
+      rank: entry.rank || 0,
+      totalParticipants: entry.totalParticipants || 0,
+      score: entry.finalScore || 0,
+      allocations: entry.allocations,
+      timestamp: entry.timestamp,
+    }));
   } catch (error) {
     console.error('Error fetching portfolio history:', error);
     return [];
@@ -297,6 +333,7 @@ export default async function ProfilePage({ params }: Props) {
     </div>
   );
 }
+
 
 
 

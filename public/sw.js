@@ -203,3 +203,4 @@ self.addEventListener('sync', (event) => {
 
 console.log('[SW] Service Worker loaded');
 
+

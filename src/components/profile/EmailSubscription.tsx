@@ -244,3 +244,4 @@ export default function EmailSubscription({ address }: Props) {
     </div>
   );
 }
+

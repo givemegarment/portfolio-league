@@ -20,6 +20,17 @@ type DataPoint = {
   change: number;
 };
 
+// Type for API response from /api/portfolio/history
+type HistoricalPortfolio = {
+  season: string;
+  week: number;
+  allocations: { symbol: string; percentage: number }[];
+  entryPrices: Record<string, number>;
+  timestamp: number;
+  finalScore?: number;
+  rank?: number;
+};
+
 type Props = {
   portfolioId?: string;
   address?: string;
@@ -113,20 +124,44 @@ export default function PerformanceChart({
           
           if (response.ok) {
             const result = await response.json();
-            if (result.data && result.data.length > 0) {
-              setData(result.data);
+            
+            // Handle history data from API (returns `history` not `data`)
+            if (result.history && result.history.length > 0) {
+              // Sort by timestamp (oldest first) and transform to chart data
+              const sortedHistory = [...result.history].sort(
+                (a: HistoricalPortfolio, b: HistoricalPortfolio) => a.timestamp - b.timestamp
+              );
+              
+              // Calculate cumulative returns for the chart
+              let cumulativeChange = 0;
+              const chartData: DataPoint[] = sortedHistory.map((entry: HistoricalPortfolio) => {
+                cumulativeChange += entry.finalScore || 0;
+                const date = new Date(entry.timestamp);
+                return {
+                  time: date.toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  }),
+                  timestamp: entry.timestamp,
+                  value: 10000 * (1 + cumulativeChange / 100),
+                  change: cumulativeChange,
+                };
+              });
+              
+              setData(chartData);
               setLoading(false);
               return;
             }
           }
         }
 
-        // Fall back to mock data
-        setData(generateMockData(7));
+        // Show empty state instead of mock data when no real data exists
+        setData([]);
       } catch (err) {
         console.error('Error fetching performance data:', err);
-        // Use mock data on error
-        setData(generateMockData(7));
+        // Show empty state on error instead of fake data
+        setData([]);
       } finally {
         setLoading(false);
       }
@@ -163,7 +198,11 @@ export default function PerformanceChart({
     return (
       <div className={`flex items-center justify-center ${className}`} style={{ height }}>
         <div className="text-center">
-          <p className="text-sm text-white/40">No performance data available</p>
+          <svg className="mx-auto h-10 w-10 text-white/20 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+          </svg>
+          <p className="text-sm text-white/40">No performance data yet</p>
+          <p className="text-xs text-white/30 mt-1">Submit a portfolio to start tracking</p>
         </div>
       </div>
     );
@@ -286,6 +325,7 @@ export function PerformanceSparkline({
     </div>
   );
 }
+
 
 
 

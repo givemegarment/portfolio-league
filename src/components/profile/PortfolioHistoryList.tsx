@@ -56,6 +56,15 @@ function AllocationBadge({ symbol, percentage }: { symbol: string; percentage: n
 }
 
 function RankDisplay({ rank, total }: { rank: number; total: number }) {
+  // Handle case where rank or total is not available
+  if (!rank || !total || total === 0) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-white/40">Ranking in progress...</span>
+      </div>
+    );
+  }
+
   const percentile = Math.round((1 - rank / total) * 100);
   const isTopTen = percentile >= 90;
   const isTopQuarter = percentile >= 75;
@@ -138,6 +147,7 @@ export default function PortfolioHistoryList({ entries, className = '' }: Props)
     </div>
   );
 }
+
 
 
 

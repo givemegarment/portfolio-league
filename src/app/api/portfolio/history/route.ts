@@ -11,6 +11,7 @@ type HistoricalPortfolio = {
   timestamp: number;
   finalScore?: number;
   rank?: number;
+  totalParticipants?: number;
 };
 
 type PricesResponse = {
@@ -89,21 +90,44 @@ export async function GET(req: Request) {
     if (isNaN(week)) continue;
 
     try {
-      const portfolioJson = await redis.hget<string>(key, address);
+      // Get all portfolios for this week to calculate rank
+      const allPortfolios = await redis.hgetall<Record<string, string>>(key);
       
-      if (!portfolioJson) continue;
-
-      const portfolio: StoredPortfolio = JSON.parse(portfolioJson);
+      if (!allPortfolios || !allPortfolios[address]) continue;
       
-      // Calculate score for this portfolio
-      let finalScore: number | undefined;
+      const totalParticipants = Object.keys(allPortfolios).length;
       
-      if (portfolio.entryPrices && Object.keys(portfolio.entryPrices).length > 0) {
-        // For current week, use current prices
-        // For past weeks, we'd ideally have final prices stored, but for now use current
-        const result = calculateScore(portfolio, currentPrices);
-        finalScore = result.totalScore;
+      // Calculate scores for all participants to determine rank
+      const scores: { address: string; score: number }[] = [];
+      
+      for (const [userAddress, portfolioJson] of Object.entries(allPortfolios)) {
+        try {
+          const userPortfolio: StoredPortfolio = JSON.parse(portfolioJson);
+          
+          if (userPortfolio.entryPrices && Object.keys(userPortfolio.entryPrices).length > 0) {
+            const result = calculateScore(userPortfolio, currentPrices);
+            scores.push({ address: userAddress, score: result.totalScore });
+          } else {
+            scores.push({ address: userAddress, score: 0 });
+          }
+        } catch {
+          scores.push({ address: userAddress, score: 0 });
+        }
       }
+      
+      // Sort by score descending to determine ranks
+      scores.sort((a, b) => b.score - a.score);
+      
+      // Find user's rank (1-indexed)
+      const userRank = scores.findIndex(
+        (s) => s.address.toLowerCase() === address.toLowerCase()
+      ) + 1;
+      
+      // Get user's portfolio and score
+      const portfolio: StoredPortfolio = JSON.parse(allPortfolios[address]);
+      const userScore = scores.find(
+        (s) => s.address.toLowerCase() === address.toLowerCase()
+      )?.score || 0;
 
       history.push({
         season,
@@ -111,7 +135,9 @@ export async function GET(req: Request) {
         allocations: portfolio.allocations,
         entryPrices: portfolio.entryPrices,
         timestamp: portfolio.timestamp,
-        finalScore,
+        finalScore: userScore,
+        rank: userRank,
+        totalParticipants,
       });
     } catch (error) {
       console.error(`Error parsing portfolio for key ${key}:`, error);
@@ -137,6 +163,7 @@ export async function GET(req: Request) {
     totalWeeksPlayed: history.length,
   });
 }
+
 
 
 

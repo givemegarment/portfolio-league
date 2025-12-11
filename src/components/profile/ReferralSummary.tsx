@@ -124,3 +124,4 @@ export default function ReferralSummary({ address }: Props) {
     </div>
   );
 }
+

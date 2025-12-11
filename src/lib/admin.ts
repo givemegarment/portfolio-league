@@ -65,3 +65,4 @@ export type PrizePoolConfig = {
   currency: string;
   sponsoredBy?: string;
 };
+
