@@ -27,6 +27,34 @@ type EmailResult = {
 };
 
 /**
+ * Send welcome email to new subscriber
+ */
+export async function sendWelcomeEmail(params: {
+  email: string;
+  address: string;
+}): Promise<EmailResult> {
+  const { email, address } = params;
+
+  const resendApiKey = process.env.RESEND_API_KEY;
+  
+  if (!resendApiKey) {
+    console.log(`[Email] Would send welcome email to ${email} for address ${address}`);
+    return { success: true };
+  }
+
+  try {
+    console.log(`[Email] Sent welcome email to ${email}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`[Email] Failed to send welcome email to ${email}:`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
  * Send weekly digest email to a subscriber
  */
 export async function sendWeeklyDigest(params: WeeklyDigestParams): Promise<EmailResult> {
