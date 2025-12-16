@@ -1,6 +1,22 @@
 import type { Metadata } from 'next'
 import dynamic from 'next/dynamic'
+import { Inter } from 'next/font/google'
+import { JetBrains_Mono } from 'next/font/google'
 import './globals.css'
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+  weight: ['300', '400', '500', '600', '700', '800'],
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains-mono',
+  display: 'swap',
+  weight: ['400', '500', '600', '700'],
+})
 
 const Providers = dynamic(() => import('@/components/Providers'), { ssr: false })
 
@@ -42,8 +58,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="bg-[#050507]">
-      <body className="min-h-screen text-white antialiased">
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable} bg-[#050507]`}>
+      <body className="min-h-screen text-white antialiased font-sans">
         {/* Background gradient mesh */}
         <div 
           className="fixed inset-0 -z-10 bg-gradient-mesh opacity-60"

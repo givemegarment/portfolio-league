@@ -30,8 +30,20 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["var(--font-outfit)", "system-ui", "-apple-system", "sans-serif"],
-        mono: ["var(--font-jetbrains-mono)", "ui-monospace", "monospace"],
+        sans: ["var(--font-inter)", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
+        mono: ["var(--font-jetbrains-mono)", "ui-monospace", "SFMono-Regular", "SF Mono", "Menlo", "Consolas", "Liberation Mono", "monospace"],
+      },
+      fontSize: {
+        'xs': ['0.75rem', { lineHeight: '1.5', letterSpacing: '-0.01em' }],
+        'sm': ['0.875rem', { lineHeight: '1.5', letterSpacing: '-0.01em' }],
+        'base': ['1rem', { lineHeight: '1.6', letterSpacing: '-0.01em' }],
+        'lg': ['1.125rem', { lineHeight: '1.6', letterSpacing: '-0.02em' }],
+        'xl': ['1.25rem', { lineHeight: '1.5', letterSpacing: '-0.02em' }],
+        '2xl': ['1.5rem', { lineHeight: '1.4', letterSpacing: '-0.02em' }],
+        '3xl': ['1.875rem', { lineHeight: '1.3', letterSpacing: '-0.03em' }],
+        '4xl': ['2.25rem', { lineHeight: '1.2', letterSpacing: '-0.03em' }],
+        '5xl': ['3rem', { lineHeight: '1.1', letterSpacing: '-0.04em' }],
+        '6xl': ['3.75rem', { lineHeight: '1.1', letterSpacing: '-0.04em' }],
       },
       borderRadius: {
         "4xl": "2rem",
@@ -64,6 +76,13 @@ const config: Config = {
         float: "float 3s ease-in-out infinite",
         "spin-slow": "spin-slow 8s linear infinite",
         shimmer: "shimmer 1.5s infinite",
+        "orbit": "orbit 10s linear infinite",
+        "orbit-reverse": "orbit 10s linear infinite reverse",
+        "energy-pulse": "energy-pulse 2s ease-out infinite",
+        "holographic": "holographic 8s ease infinite",
+        "gradient-flow": "gradient-border 4s linear infinite",
+        "data-stream": "data-stream 3s linear infinite",
+        "radar-sweep": "radar-sweep 4s linear infinite",
       },
       keyframes: {
         fadeIn: {
@@ -105,6 +124,31 @@ const config: Config = {
         shimmer: {
           "0%": { backgroundPosition: "-200% 0" },
           "100%": { backgroundPosition: "200% 0" },
+        },
+        orbit: {
+          "0%": { transform: "rotate(0deg) translateX(30px) rotate(0deg)" },
+          "100%": { transform: "rotate(360deg) translateX(30px) rotate(-360deg)" },
+        },
+        "energy-pulse": {
+          "0%, 100%": { boxShadow: "0 0 0 0 rgba(0, 82, 255, 0.4)" },
+          "50%": { boxShadow: "0 0 0 10px rgba(0, 82, 255, 0)" },
+        },
+        holographic: {
+          "0%, 100%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+        },
+        "gradient-border": {
+          "0%, 100%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+        },
+        "data-stream": {
+          "0%": { transform: "translateY(-100%)", opacity: "0" },
+          "50%": { opacity: "1" },
+          "100%": { transform: "translateY(100%)", opacity: "0" },
+        },
+        "radar-sweep": {
+          "0%": { transform: "rotate(0deg)" },
+          "100%": { transform: "rotate(360deg)" },
         },
       },
     },

@@ -65,8 +65,8 @@ function HowItWorksStep({
           {step}
         </div>
         <div>
-          <h3 className="font-semibold text-white">{title}</h3>
-          <p className="mt-1 text-sm text-white/50">{description}</p>
+              <h3 className="font-semibold text-white text-base leading-snug">{title}</h3>
+              <p className="mt-1.5 text-sm text-white/60 leading-relaxed">{description}</p>
         </div>
       </div>
     </div>
@@ -164,13 +164,13 @@ export default function HomeClient() {
               Season {stats.season} • Week {stats.weekNumber} Live
             </div>
 
-            <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl animate-fade-in-up">
+            <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl animate-fade-in-up leading-tight">
               Pick. Compete.{' '}
               <span className="text-gradient">Win.</span>
             </h1>
 
             <p
-              className="mt-4 max-w-xl text-lg text-white/60 animate-fade-in-up"
+              className="mt-6 max-w-xl text-lg text-white/70 leading-relaxed animate-fade-in-up"
               style={{ animationDelay: '100ms' }}
             >
               Select 3 crypto assets each week. Compete against other traders.
@@ -313,7 +313,7 @@ export default function HomeClient() {
 
             {/* How It Works */}
             <div className="rounded-2xl border border-white/5 bg-surface-2 p-6">
-              <h3 className="mb-6 flex items-center gap-2 text-lg font-bold text-white">
+              <h3 className="mb-6 flex items-center gap-2 text-lg font-bold text-white tracking-tight">
                 <svg
                   className="h-5 w-5 text-base-blue"
                   fill="none"
