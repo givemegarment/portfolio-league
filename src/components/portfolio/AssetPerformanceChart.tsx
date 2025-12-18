@@ -27,6 +27,15 @@ type Props = {
   height?: number;
 };
 
+type PriceHistoryItem = {
+  timestamp: number;
+  price: number;
+  date: string;
+  entryPrice: number;
+  currentPrice: number;
+  returnPct: number;
+};
+
 type AssetPerformanceData = {
   symbol: string;
   name: string;
@@ -36,11 +45,7 @@ type AssetPerformanceData = {
   currentPrice: number;
   returnPct: number;
   allocation: number;
-  priceHistory: Array<{
-    timestamp: number;
-    price: number;
-    date: string;
-  }>;
+  priceHistory: PriceHistoryItem[];
 };
 
 // Custom tooltip for asset performance
@@ -126,7 +131,7 @@ export default function AssetPerformanceChart({
         // Generate simplified price history (in real app, fetch from API)
         const now = Date.now();
         const days = timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : 30;
-        const history = [];
+        const history: PriceHistoryItem[] = [];
         
         for (let i = days; i >= 0; i--) {
           const timestamp = now - i * 24 * 60 * 60 * 1000;
