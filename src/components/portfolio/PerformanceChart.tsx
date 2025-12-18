@@ -11,13 +11,20 @@ import {
   ReferenceLine,
   Area,
   ComposedChart,
+  Legend,
 } from 'recharts';
+
+type TimeRange = '24h' | '1W' | '1M' | '3M' | 'All';
 
 type DataPoint = {
   time: string;
   timestamp: number;
   value: number;
   change: number;
+  portfolioValue?: number;
+  portfolioReturn?: number;
+  benchmarkValue?: number;
+  benchmarkReturn?: number;
 };
 
 // Type for API response from /api/portfolio/history
@@ -40,27 +47,91 @@ type Props = {
   showTooltip?: boolean;
   showGradient?: boolean;
   className?: string;
+  showTimeRange?: boolean;
+  showBenchmark?: boolean;
+  defaultRange?: TimeRange;
+  benchmark?: 'BTC' | 'market';
 };
 
-// Custom tooltip component
+// Enhanced tooltip component
 function CustomTooltip({ active, payload, label }: {
   active?: boolean;
-  payload?: Array<{ value: number; payload: DataPoint }>;
+  payload?: Array<{ 
+    value: number; 
+    dataKey: string;
+    name: string;
+    color: string;
+    payload: DataPoint 
+  }>;
   label?: string;
 }) {
   if (!active || !payload || !payload.length) {
     return null;
   }
 
-  const data = payload[0].payload;
-  const isPositive = data.change >= 0;
+  const portfolioData = payload.find(p => p.dataKey === 'portfolioReturn' || p.dataKey === 'change');
+  const benchmarkData = payload.find(p => p.dataKey === 'benchmarkReturn');
+  
+  if (!portfolioData) return null;
+
+  const data = portfolioData.payload;
+  const portfolioReturn = data.portfolioReturn ?? data.change ?? 0;
+  const benchmarkReturn = data.benchmarkReturn ?? 0;
+  const portfolioValue = data.portfolioValue ?? data.value ?? 0;
+  const benchmarkValue = data.benchmarkValue ?? 0;
+  
+  const isPositive = portfolioReturn >= 0;
+  const benchmarkIsPositive = benchmarkReturn >= 0;
+  const outperformance = portfolioReturn - benchmarkReturn;
 
   return (
-    <div className="rounded-lg border border-white/10 bg-surface-3 px-3 py-2 shadow-lg">
-      <p className="text-xs text-white/50">{data.time}</p>
-      <p className={`text-sm font-bold ${isPositive ? 'text-accent-emerald' : 'text-accent-rose'}`}>
-        {isPositive ? '+' : ''}{data.change.toFixed(2)}%
-      </p>
+    <div className="rounded-lg border border-white/10 bg-surface-3 px-4 py-3 shadow-lg backdrop-blur-sm">
+      <p className="text-xs text-white/50 mb-2 font-medium">{data.time || label}</p>
+      
+      <div className="space-y-2">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="h-2 w-2 rounded-full bg-accent-emerald" />
+            <span className="text-xs text-white/60">Portfolio</span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <p className={`text-sm font-bold ${isPositive ? 'text-accent-emerald' : 'text-accent-rose'}`}>
+              {isPositive ? '+' : ''}{portfolioReturn.toFixed(2)}%
+            </p>
+            <p className="text-xs text-white/40 font-mono">
+              ${portfolioValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+            </p>
+          </div>
+        </div>
+        
+        {benchmarkData && (
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="h-2 w-2 rounded-full bg-base-blue" />
+              <span className="text-xs text-white/60">Benchmark</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <p className={`text-sm font-bold ${benchmarkIsPositive ? 'text-accent-emerald' : 'text-accent-rose'}`}>
+                {benchmarkIsPositive ? '+' : ''}{benchmarkReturn.toFixed(2)}%
+              </p>
+              <p className="text-xs text-white/40 font-mono">
+                ${benchmarkValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+              </p>
+            </div>
+          </div>
+        )}
+        
+        {benchmarkData && (
+          <div className="pt-2 border-t border-white/10">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-white/50">Outperformance</span>
+              <span className={`text-xs font-bold ${outperformance >= 0 ? 'text-accent-emerald' : 'text-accent-rose'}`}>
+                {outperformance >= 0 ? '+' : ''}{outperformance.toFixed(2)}%
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -97,10 +168,16 @@ export default function PerformanceChart({
   showTooltip = true,
   showGradient = true,
   className = '',
+  showTimeRange = true,
+  showBenchmark = true,
+  defaultRange = '1M',
+  benchmark = 'BTC',
 }: Props) {
   const [data, setData] = useState<DataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [timeRange, setTimeRange] = useState<TimeRange>(defaultRange);
+  const [selectedBenchmark, setSelectedBenchmark] = useState<'BTC' | 'market'>(benchmark);
 
   useEffect(() => {
     if (providedData) {
@@ -114,7 +191,35 @@ export default function PerformanceChart({
       setError(null);
 
       try {
-        // If we have an address or portfolioId, try to fetch real data
+        // If we have an address, try to fetch performance data with benchmark
+        if (address && showBenchmark) {
+          const endpoint = `/api/portfolio/performance?address=${address}&range=${timeRange}&benchmark=${selectedBenchmark}`;
+          
+          const response = await fetch(endpoint);
+          
+          if (response.ok) {
+            const result = await response.json();
+            
+            if (result.data && result.data.length > 0) {
+              const chartData: DataPoint[] = result.data.map((point: any) => ({
+                time: point.date,
+                timestamp: point.timestamp,
+                value: point.portfolioValue,
+                change: point.portfolioReturn,
+                portfolioValue: point.portfolioValue,
+                portfolioReturn: point.portfolioReturn,
+                benchmarkValue: point.benchmarkValue,
+                benchmarkReturn: point.benchmarkReturn,
+              }));
+              
+              setData(chartData);
+              setLoading(false);
+              return;
+            }
+          }
+        }
+        
+        // Fallback to history API if performance API not available or no benchmark
         if (address || portfolioId) {
           const endpoint = portfolioId 
             ? `/api/portfolio/history/${portfolioId}`
@@ -127,10 +232,32 @@ export default function PerformanceChart({
             
             // Handle history data from API (returns `history` not `data`)
             if (result.history && result.history.length > 0) {
+              // Filter by time range
+              const now = Date.now();
+              let startTime = now;
+              
+              switch (timeRange) {
+                case '24h':
+                  startTime = now - 24 * 60 * 60 * 1000;
+                  break;
+                case '1W':
+                  startTime = now - 7 * 24 * 60 * 60 * 1000;
+                  break;
+                case '1M':
+                  startTime = now - 30 * 24 * 60 * 60 * 1000;
+                  break;
+                case '3M':
+                  startTime = now - 90 * 24 * 60 * 60 * 1000;
+                  break;
+                case 'All':
+                  startTime = 0;
+                  break;
+              }
+              
               // Sort by timestamp (oldest first) and transform to chart data
-              const sortedHistory = [...result.history].sort(
-                (a: HistoricalPortfolio, b: HistoricalPortfolio) => a.timestamp - b.timestamp
-              );
+              const sortedHistory = [...result.history]
+                .filter((entry: HistoricalPortfolio) => entry.timestamp >= startTime)
+                .sort((a: HistoricalPortfolio, b: HistoricalPortfolio) => a.timestamp - b.timestamp);
               
               // Calculate cumulative returns for the chart
               let cumulativeChange = 0;
@@ -160,7 +287,7 @@ export default function PerformanceChart({
         setData([]);
       } catch (err) {
         console.error('Error fetching performance data:', err);
-        // Show empty state on error instead of fake data
+        setError(err instanceof Error ? err.message : 'Failed to load data');
         setData([]);
       } finally {
         setLoading(false);
@@ -168,7 +295,7 @@ export default function PerformanceChart({
     };
 
     fetchData();
-  }, [portfolioId, address, providedData]);
+  }, [portfolioId, address, providedData, timeRange, selectedBenchmark, showBenchmark]);
 
   if (loading) {
     return (
@@ -208,21 +335,73 @@ export default function PerformanceChart({
     );
   }
 
-  const latestChange = data[data.length - 1]?.change ?? 0;
+  const latestChange = data[data.length - 1]?.portfolioReturn ?? data[data.length - 1]?.change ?? 0;
+  const latestBenchmark = data[data.length - 1]?.benchmarkReturn ?? 0;
   const isPositive = latestChange >= 0;
   const strokeColor = isPositive ? '#10B981' : '#F43F5E'; // emerald / rose
-  const gradientId = `performanceGradient-${portfolioId || 'default'}`;
+  const benchmarkColor = '#0052FF'; // base-blue
+  const gradientId = `performanceGradient-${portfolioId || address || 'default'}`;
+  const benchmarkGradientId = `benchmarkGradient-${portfolioId || address || 'default'}`;
+
+  const timeRangeOptions: { value: TimeRange; label: string }[] = [
+    { value: '24h', label: '24h' },
+    { value: '1W', label: '1W' },
+    { value: '1M', label: '1M' },
+    { value: '3M', label: '3M' },
+    { value: 'All', label: 'All' },
+  ];
 
   return (
     <div className={className}>
+      {/* Controls */}
+      {showTimeRange && (
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            {timeRangeOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setTimeRange(option.value)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                  timeRange === option.value
+                    ? 'bg-base-blue text-white'
+                    : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          
+          {showBenchmark && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/40">Benchmark:</span>
+              <select
+                value={selectedBenchmark}
+                onChange={(e) => setSelectedBenchmark(e.target.value as 'BTC' | 'market')}
+                className="px-2 py-1 text-xs bg-white/5 text-white border border-white/10 rounded-lg focus:outline-none focus:border-base-blue"
+              >
+                <option value="BTC">BTC</option>
+                <option value="market">Market Avg</option>
+              </select>
+            </div>
+          )}
+        </div>
+      )}
+
       <ResponsiveContainer width="100%" height={height}>
         <ComposedChart data={data} margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
-          {/* Gradient definition */}
+          {/* Gradient definitions */}
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={strokeColor} stopOpacity={0.3} />
               <stop offset="100%" stopColor={strokeColor} stopOpacity={0} />
             </linearGradient>
+            {showBenchmark && (
+              <linearGradient id={benchmarkGradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={benchmarkColor} stopOpacity={0.2} />
+                <stop offset="100%" stopColor={benchmarkColor} stopOpacity={0} />
+              </linearGradient>
+            )}
           </defs>
 
           {/* Axes */}
@@ -234,13 +413,20 @@ export default function PerformanceChart({
                 tickLine={false}
                 tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }}
                 tickMargin={8}
+                interval="preserveStartEnd"
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }}
                 tickMargin={8}
-                tickFormatter={(value) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`}
+                tickFormatter={(value) => {
+                  // Format as percentage for returns, or value for portfolio value
+                  if (showBenchmark && data.length > 0 && data[0].portfolioValue) {
+                    return `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+                  }
+                  return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
+                }}
                 domain={['auto', 'auto']}
               />
             </>
@@ -252,23 +438,45 @@ export default function PerformanceChart({
           {/* Tooltip */}
           {showTooltip && <Tooltip content={<CustomTooltip />} />}
 
-          {/* Area fill */}
+          {/* Legend */}
+          {showBenchmark && <Legend 
+            wrapperStyle={{ paddingTop: '10px' }}
+            iconType="line"
+            formatter={(value) => {
+              if (value === 'portfolioReturn') return 'Portfolio';
+              if (value === 'benchmarkReturn') return selectedBenchmark === 'BTC' ? 'BTC' : 'Market';
+              return value;
+            }}
+          />}
+
+          {/* Area fills */}
           {showGradient && (
-            <Area
-              type="monotone"
-              dataKey="change"
-              stroke="none"
-              fill={`url(#${gradientId})`}
-            />
+            <>
+              <Area
+                type="monotone"
+                dataKey={showBenchmark ? "portfolioReturn" : "change"}
+                stroke="none"
+                fill={`url(#${gradientId})`}
+              />
+              {showBenchmark && (
+                <Area
+                  type="monotone"
+                  dataKey="benchmarkReturn"
+                  stroke="none"
+                  fill={`url(#${benchmarkGradientId})`}
+                />
+              )}
+            </>
           )}
 
-          {/* Line */}
+          {/* Lines */}
           <Line
             type="monotone"
-            dataKey="change"
+            dataKey={showBenchmark ? "portfolioReturn" : "change"}
             stroke={strokeColor}
             strokeWidth={2}
             dot={false}
+            name="portfolioReturn"
             activeDot={{
               r: 4,
               fill: strokeColor,
@@ -276,15 +484,53 @@ export default function PerformanceChart({
               strokeWidth: 2,
             }}
           />
+          
+          {showBenchmark && (
+            <Line
+              type="monotone"
+              dataKey="benchmarkReturn"
+              stroke={benchmarkColor}
+              strokeWidth={2}
+              strokeDasharray="5 5"
+              dot={false}
+              name="benchmarkReturn"
+              activeDot={{
+                r: 4,
+                fill: benchmarkColor,
+                stroke: 'white',
+                strokeWidth: 2,
+              }}
+            />
+          )}
         </ComposedChart>
       </ResponsiveContainer>
 
       {/* Summary */}
-      <div className="mt-2 flex items-center justify-between text-xs">
-        <span className="text-white/40">7-day performance</span>
-        <span className={`font-mono font-bold ${isPositive ? 'text-accent-emerald' : 'text-accent-rose'}`}>
-          {isPositive ? '+' : ''}{latestChange.toFixed(2)}%
-        </span>
+      <div className="mt-4 flex items-center justify-between text-xs">
+        <div className="flex items-center gap-4">
+          <div>
+            <span className="text-white/40">Portfolio: </span>
+            <span className={`font-mono font-bold ${isPositive ? 'text-accent-emerald' : 'text-accent-rose'}`}>
+              {isPositive ? '+' : ''}{latestChange.toFixed(2)}%
+            </span>
+          </div>
+          {showBenchmark && latestBenchmark !== 0 && (
+            <div>
+              <span className="text-white/40">Benchmark: </span>
+              <span className={`font-mono font-bold ${latestBenchmark >= 0 ? 'text-accent-emerald' : 'text-accent-rose'}`}>
+                {latestBenchmark >= 0 ? '+' : ''}{latestBenchmark.toFixed(2)}%
+              </span>
+            </div>
+          )}
+        </div>
+        {showBenchmark && latestBenchmark !== 0 && (
+          <div>
+            <span className="text-white/40">Outperformance: </span>
+            <span className={`font-mono font-bold ${(latestChange - latestBenchmark) >= 0 ? 'text-accent-emerald' : 'text-accent-rose'}`}>
+              {(latestChange - latestBenchmark) >= 0 ? '+' : ''}{(latestChange - latestBenchmark).toFixed(2)}%
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -325,6 +571,10 @@ export function PerformanceSparkline({
     </div>
   );
 }
+
+
+
+
 
 
 

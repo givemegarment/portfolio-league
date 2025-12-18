@@ -49,10 +49,14 @@ async function fetchCurrentPrices(): Promise<Record<string, PriceData>> {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const limitParam = searchParams.get('limit');
+  const seasonParam = searchParams.get('season');
+  const weekParam = searchParams.get('week');
   const limit = limitParam ? Math.min(100, Math.max(1, parseInt(limitParam))) : 50;
 
-  // Get current week
-  const { season, week } = getCurrentWeek();
+  // Get week - use provided or current
+  const currentWeek = getCurrentWeek();
+  const season = seasonParam || currentWeek.season;
+  const week = weekParam ? parseInt(weekParam) : currentWeek.week;
   const weekKey = getWeekKey(season, week);
 
   console.log(`[Leaderboard] Fetching portfolios for ${weekKey}`);

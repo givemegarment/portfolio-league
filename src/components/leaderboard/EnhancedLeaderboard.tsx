@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { getAsset } from '@/lib/assets';
 import { COMPETITION_CONFIGS, type CompetitionType } from '@/lib/competitions';
 import { PerformanceSparkline } from '@/components/portfolio/PerformanceChart';
+import FollowButton from '@/components/social/FollowButton';
+import CopyTradeButton from '@/components/social/CopyTradeButton';
 
 type AllocationItem = {
   symbol: string;
@@ -198,6 +200,10 @@ type Props = {
   defaultTimeframe?: CompetitionType;
   limit?: number;
   className?: string;
+  week?: number | null;
+  season?: string;
+  highlightAddress?: string;
+  currentUserAddress?: string;
 };
 
 export default function EnhancedLeaderboard({
@@ -205,12 +211,17 @@ export default function EnhancedLeaderboard({
   defaultTimeframe = 'weekly',
   limit = 50,
   className = '',
+  week,
+  season,
+  highlightAddress,
+  currentUserAddress,
 }: Props) {
   const [rows, setRows] = useState<LeaderboardRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<CompetitionType>(defaultTimeframe);
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [userRank, setUserRank] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -218,10 +229,29 @@ export default function EnhancedLeaderboard({
     const fetchLeaderboard = () => {
       setError(null);
       
-      fetch(`/api/leaderboard?limit=${limit}&type=${timeframe}`)
+      const params = new URLSearchParams({
+        limit: limit.toString(),
+        type: timeframe,
+        ...(week && { week: week.toString() }),
+        ...(season && { season }),
+      });
+      
+      fetch(`/api/leaderboard?${params}`)
         .then((r) => r.json())
         .then((data: LeaderboardRow[]) => {
-          if (alive) setRows(Array.isArray(data) ? data : []);
+          if (alive) {
+            setRows(Array.isArray(data) ? data : []);
+            
+            // Find user's rank
+            if (highlightAddress) {
+              const userEntry = data.find(
+                r => r.user.toLowerCase() === highlightAddress.toLowerCase()
+              );
+              if (userEntry) {
+                setUserRank(userEntry.rank);
+              }
+            }
+          }
         })
         .catch(() => {
           if (alive) setError('Failed to load leaderboard');
@@ -235,7 +265,7 @@ export default function EnhancedLeaderboard({
       alive = false;
       clearInterval(interval);
     };
-  }, [limit, timeframe]);
+  }, [limit, timeframe, week, season, highlightAddress]);
 
   // Apply filters
   const filteredRows = rows?.filter((row) => {
@@ -389,15 +419,18 @@ export default function EnhancedLeaderboard({
 
             {filteredRows?.map((r, idx) => {
               const isTopThree = r.rank <= 3;
+              const isUser = highlightAddress && r.user.toLowerCase() === highlightAddress.toLowerCase();
               const scoreValue = typeof r.score === 'number' ? r.score : 0;
               const isPositive = scoreValue >= 0;
 
               return (
                 <tr
                   key={`${r.user}-${r.rank}`}
+                  id={isUser ? 'user-row' : undefined}
                   className={`
                     border-b border-white/5 transition-colors duration-200
                     ${isTopThree ? 'bg-white/[0.02]' : ''}
+                    ${isUser ? 'bg-base-blue/10 ring-2 ring-base-blue/30' : ''}
                     hover:bg-white/[0.04]
                   `}
                   style={{ animationDelay: `${idx * 50}ms` }}
@@ -446,7 +479,7 @@ export default function EnhancedLeaderboard({
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-wrap">
                       <Link
                         href={`/profile/${r.user}`}
                         className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1.5 text-xs font-medium text-white/60 hover:bg-white/10 hover:text-white transition-colors"
@@ -456,6 +489,20 @@ export default function EnhancedLeaderboard({
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                       </Link>
+                      {currentUserAddress && currentUserAddress.toLowerCase() !== r.user.toLowerCase() && (
+                        <>
+                          <FollowButton
+                            address={currentUserAddress}
+                            targetAddress={r.user}
+                            className="!px-2 !py-1.5 !text-xs"
+                          />
+                          <CopyTradeButton
+                            fromAddress={r.user}
+                            toAddress={currentUserAddress}
+                            className="!px-2 !py-1.5 !text-xs"
+                          />
+                        </>
+                      )}
                       <a
                         href={`/compare?address=${r.user}`}
                         className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1.5 text-xs font-medium text-white/60 hover:bg-white/10 hover:text-white transition-colors"
@@ -479,15 +526,44 @@ export default function EnhancedLeaderboard({
       {filteredRows && filteredRows.length > 0 && (
         <div className="border-t border-white/5 bg-surface-3/30 px-4 py-3">
           <div className="flex items-center justify-between text-xs text-white/40">
-            <span>
-              Showing {filteredRows.length} of {rows?.length || 0} players
-            </span>
+            <div className="flex items-center gap-4">
+              <span>
+                Showing {filteredRows.length} of {rows?.length || 0} players
+              </span>
+              {userRank && (
+                <span className="text-base-blue">
+                  Your rank: #{userRank}
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <span className="text-white/30">
                 {COMPETITION_CONFIGS[timeframe].icon} {COMPETITION_CONFIGS[timeframe].name}
               </span>
+              {week && season && (
+                <span className="text-white/30">
+                  • {season.toUpperCase()} Week {week}
+                </span>
+              )}
             </div>
           </div>
+        </div>
+      )}
+      
+      {/* Scroll to user button */}
+      {userRank && userRank > 10 && (
+        <div className="border-t border-white/5 bg-surface-3/30 px-4 py-3 text-center">
+          <button
+            onClick={() => {
+              const element = document.getElementById('user-row');
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }}
+            className="text-xs text-base-blue hover:text-base-blue-light transition-colors"
+          >
+            Scroll to your position (#{userRank})
+          </button>
         </div>
       )}
     </div>

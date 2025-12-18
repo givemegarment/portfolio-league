@@ -13,6 +13,12 @@ type Allocation = { symbol: string; percentage: number };
 type PriceData = { price: number; change24h: number };
 type Props = { address?: `0x${string}` };
 
+type EmulationTemplate = {
+  masterAddress: string;
+  masterName: string;
+  allocations: Allocation[];
+};
+
 // Default allocations for new users
 const DEFAULT_ALLOCATIONS: Allocation[] = [
   { symbol: 'BTC', percentage: 50 },
@@ -37,6 +43,26 @@ export default function PortfolioBuilder({ address }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(true);
   const [portfolioInitialized, setPortfolioInitialized] = useState(false);
+  const [emulatingMaster, setEmulatingMaster] = useState<EmulationTemplate | null>(null);
+
+  // Check for emulation template on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const templateData = sessionStorage.getItem('emulation_template');
+    if (templateData) {
+      try {
+        const template: EmulationTemplate = JSON.parse(templateData);
+        setEmulatingMaster(template);
+        setAllocations(template.allocations);
+        setPortfolioInitialized(true);
+        // Clear the template after loading
+        sessionStorage.removeItem('emulation_template');
+      } catch (e) {
+        console.error('Error parsing emulation template:', e);
+      }
+    }
+  }, []);
 
   // Fetch real prices from API
   useEffect(() => {
@@ -366,6 +392,34 @@ export default function PortfolioBuilder({ address }: Props) {
           </span>
         </div>
       </div>
+
+      {/* Emulation Banner */}
+      {emulatingMaster && (
+        <div className="rounded-xl border border-base-blue/20 bg-gradient-to-r from-base-blue/10 to-purple-600/10 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-base-blue/20 text-lg">
+                👑
+              </div>
+              <div>
+                <div className="flex items-center gap-2 text-sm font-medium text-white">
+                  <span>Emulating</span>
+                  <span className="text-base-blue">{emulatingMaster.masterName}</span>
+                </div>
+                <p className="text-xs text-white/50">
+                  Customize the strategy to make it your own
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setEmulatingMaster(null)}
+              className="text-xs text-white/40 hover:text-white/60"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Lock Warning */}
       {isLocked && (

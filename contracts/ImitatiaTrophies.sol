@@ -17,12 +17,21 @@ contract ImitatiaTrophies is ERC721, ERC721URIStorage, Ownable {
 
     // Trophy types
     enum TrophyType {
-        WEEKLY_WINNER,      // 0 - Won a week
-        SEASON_CHAMPION,    // 1 - Won a season
-        HOT_STREAK,         // 2 - Top 10% for 3+ consecutive weeks
-        PERFECT_PICK,       // 3 - 100%+ return in a week
-        EARLY_ADOPTER,      // 4 - Season 1 participant
-        GIANT_SLAYER        // 5 - Beat a top 50 player in challenge
+        WEEKLY_WINNER,       // 0 - Won a week
+        SEASON_CHAMPION,     // 1 - Won a season
+        HOT_STREAK,          // 2 - Top 10% for 3+ consecutive weeks
+        PERFECT_PICK,        // 3 - 100%+ return in a week
+        EARLY_ADOPTER,       // 4 - Season 1 participant
+        GIANT_SLAYER,        // 5 - Beat a top 50 player in challenge
+        // New Imitatio-specific trophies
+        FIRST_EMULATION,     // 6 - First Master emulation
+        PERFECT_ADAPTATION,  // 7 - Beat the Master you emulated
+        MASTER_BEATER,       // 8 - Beat 5 different Masters
+        NARRATIVE_MASTER,    // 9 - Won a narrative league
+        LEAGUE_CHAMPION,     // 10 - Won a competitive league
+        STREAK_KEEPER,       // 11 - 10-week winning streak
+        DIVERSIFICATION_GURU,// 12 - Won with diversified portfolio
+        RISK_TAKER           // 13 - Won in aggressive tier
     }
 
     // Trophy metadata
@@ -70,6 +79,15 @@ contract ImitatiaTrophies is ERC721, ERC721URIStorage, Ownable {
         trophyNames[TrophyType.PERFECT_PICK] = "Perfect Pick";
         trophyNames[TrophyType.EARLY_ADOPTER] = "Early Adopter";
         trophyNames[TrophyType.GIANT_SLAYER] = "Giant Slayer";
+        // New trophy names
+        trophyNames[TrophyType.FIRST_EMULATION] = "First Steps";
+        trophyNames[TrophyType.PERFECT_ADAPTATION] = "Perfect Adaptation";
+        trophyNames[TrophyType.MASTER_BEATER] = "Master Beater";
+        trophyNames[TrophyType.NARRATIVE_MASTER] = "Narrative Master";
+        trophyNames[TrophyType.LEAGUE_CHAMPION] = "League Champion";
+        trophyNames[TrophyType.STREAK_KEEPER] = "Streak Keeper";
+        trophyNames[TrophyType.DIVERSIFICATION_GURU] = "Diversification Guru";
+        trophyNames[TrophyType.RISK_TAKER] = "Risk Taker";
 
         trophyDescriptions[TrophyType.WEEKLY_WINNER] = "Finished #1 in a weekly competition";
         trophyDescriptions[TrophyType.SEASON_CHAMPION] = "Won a full season of Imitatio";
@@ -77,6 +95,15 @@ contract ImitatiaTrophies is ERC721, ERC721URIStorage, Ownable {
         trophyDescriptions[TrophyType.PERFECT_PICK] = "Achieved 100%+ portfolio return in a week";
         trophyDescriptions[TrophyType.EARLY_ADOPTER] = "Participated in Season 1";
         trophyDescriptions[TrophyType.GIANT_SLAYER] = "Beat a top 50 player in a challenge";
+        // New trophy descriptions
+        trophyDescriptions[TrophyType.FIRST_EMULATION] = "Completed your first Master emulation";
+        trophyDescriptions[TrophyType.PERFECT_ADAPTATION] = "Beat the Master you emulated by 5%+";
+        trophyDescriptions[TrophyType.MASTER_BEATER] = "Beat 5 different Masters in a season";
+        trophyDescriptions[TrophyType.NARRATIVE_MASTER] = "Won a narrative-specific league";
+        trophyDescriptions[TrophyType.LEAGUE_CHAMPION] = "Won a competitive league";
+        trophyDescriptions[TrophyType.STREAK_KEEPER] = "Maintained a 10-week winning streak";
+        trophyDescriptions[TrophyType.DIVERSIFICATION_GURU] = "Won with a highly diversified portfolio";
+        trophyDescriptions[TrophyType.RISK_TAKER] = "Won in the Degen risk tier league";
 
         trophyEmojis[TrophyType.WEEKLY_WINNER] = unicode"🥇";
         trophyEmojis[TrophyType.SEASON_CHAMPION] = unicode"🏆";
@@ -84,6 +111,15 @@ contract ImitatiaTrophies is ERC721, ERC721URIStorage, Ownable {
         trophyEmojis[TrophyType.PERFECT_PICK] = unicode"🎯";
         trophyEmojis[TrophyType.EARLY_ADOPTER] = unicode"🌱";
         trophyEmojis[TrophyType.GIANT_SLAYER] = unicode"⚔️";
+        // New trophy emojis
+        trophyEmojis[TrophyType.FIRST_EMULATION] = unicode"🎓";
+        trophyEmojis[TrophyType.PERFECT_ADAPTATION] = unicode"🏅";
+        trophyEmojis[TrophyType.MASTER_BEATER] = unicode"👑";
+        trophyEmojis[TrophyType.NARRATIVE_MASTER] = unicode"📖";
+        trophyEmojis[TrophyType.LEAGUE_CHAMPION] = unicode"🏆";
+        trophyEmojis[TrophyType.STREAK_KEEPER] = unicode"💫";
+        trophyEmojis[TrophyType.DIVERSIFICATION_GURU] = unicode"🎯";
+        trophyEmojis[TrophyType.RISK_TAKER] = unicode"🎰";
 
         // Owner is automatically an authorized minter
         authorizedMinters[msg.sender] = true;

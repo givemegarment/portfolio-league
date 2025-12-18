@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
 import { getCurrentWeek, isLocked, getWeekKey } from '@/lib/weeks';
+import { createPortfolioSubmitTransaction, createAllocationChangeTransaction } from '@/lib/transactions';
 
 type AllocationItem = {
   symbol: string;
@@ -155,10 +156,36 @@ export async function POST(req: Request) {
   console.log(`[Portfolio Save] Entry prices:`, entryPrices);
 
   try {
+    // Get existing portfolio to track changes
+    const existingPortfolio = await redis.hget<StoredPortfolio>(weekKey, body.address);
+    
     // Save to Redis - @upstash/redis auto-serializes objects, so don't use JSON.stringify
     await redis.hset(weekKey, {
       [body.address]: portfolioData,
     });
+    
+    // Track transaction
+    try {
+      if (existingPortfolio && existingPortfolio.allocations) {
+        // This is an allocation change
+        await createAllocationChangeTransaction(
+          body.address,
+          existingPortfolio.allocations,
+          allocations,
+          entryPrices
+        );
+      } else {
+        // This is a new portfolio submission
+        await createPortfolioSubmitTransaction(
+          body.address,
+          allocations,
+          entryPrices
+        );
+      }
+    } catch (txError) {
+      // Don't fail the save if transaction tracking fails
+      console.error('[Portfolio Save] Failed to track transaction:', txError);
+    }
     
     console.log(`[Portfolio Save] Write completed, now verifying...`);
     

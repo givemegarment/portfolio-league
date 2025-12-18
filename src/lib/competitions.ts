@@ -299,6 +299,298 @@ export function isValidCompetitionType(type: string): type is CompetitionType {
   return ['daily', 'threeDay', 'weekly', 'monthly'].includes(type);
 }
 
+// ============ League System ============
+
+export type LeagueType = 
+  | 'open'           // Anyone can join
+  | 'narrative'      // Specific to a DeFi narrative  
+  | 'master-follow'  // All emulating same Master
+  | 'risk-tier'      // Grouped by risk tolerance
+  | 'invite';        // Private leagues
+
+export type RiskTier = 'conservative' | 'moderate' | 'aggressive';
+
+export type League = {
+  id: string;
+  name: string;
+  type: LeagueType;
+  description: string;
+  createdBy: string;
+  masterAddress?: string;      // For master-follow leagues
+  narrative?: string;          // For narrative leagues
+  riskTier?: RiskTier;         // For risk-tier leagues
+  inviteCode?: string;         // For invite leagues
+  competitionType: CompetitionType;
+  playerCount: number;
+  maxPlayers: number;
+  prizePool: number;
+  entryFee: number;
+  startsAt: number;
+  endsAt: number;
+  createdAt: number;
+  isActive: boolean;
+  isFeatured: boolean;
+};
+
+export type LeagueEntry = {
+  leagueId: string;
+  address: string;
+  joinedAt: number;
+  currentRank?: number;
+  currentScore?: number;
+};
+
+/**
+ * League type configurations
+ */
+export const LEAGUE_TYPE_CONFIGS: Record<LeagueType, {
+  name: string;
+  description: string;
+  icon: string;
+  color: string;
+}> = {
+  open: {
+    name: 'Open League',
+    description: 'Anyone can join this competition',
+    icon: '🌐',
+    color: '#10B981',
+  },
+  narrative: {
+    name: 'Narrative League',
+    description: 'Competition focused on a specific DeFi narrative',
+    icon: '📖',
+    color: '#0052FF',
+  },
+  'master-follow': {
+    name: 'Master League',
+    description: 'All players emulate the same Master',
+    icon: '👑',
+    color: '#F7931A',
+  },
+  'risk-tier': {
+    name: 'Risk-Tier League',
+    description: 'Players grouped by risk tolerance',
+    icon: '📊',
+    color: '#9945FF',
+  },
+  invite: {
+    name: 'Private League',
+    description: 'Invite-only competition',
+    icon: '🔒',
+    color: '#EF4444',
+  },
+};
+
+/**
+ * Risk tier configurations
+ */
+export const RISK_TIER_CONFIGS: Record<RiskTier, {
+  name: string;
+  description: string;
+  maxVolatility: number;
+  allowedHighRiskPercentage: number;
+  color: string;
+}> = {
+  conservative: {
+    name: 'Conservative',
+    description: 'Low risk strategies with stable assets',
+    maxVolatility: 30,
+    allowedHighRiskPercentage: 10,
+    color: '#10B981',
+  },
+  moderate: {
+    name: 'Moderate',
+    description: 'Balanced risk with diversified holdings',
+    maxVolatility: 60,
+    allowedHighRiskPercentage: 40,
+    color: '#F59E0B',
+  },
+  aggressive: {
+    name: 'Aggressive',
+    description: 'High risk tolerance with volatile assets',
+    maxVolatility: 100,
+    allowedHighRiskPercentage: 100,
+    color: '#EF4444',
+  },
+};
+
+/**
+ * Get league type config
+ */
+export function getLeagueTypeConfig(type: LeagueType) {
+  return LEAGUE_TYPE_CONFIGS[type];
+}
+
+/**
+ * Get risk tier config
+ */
+export function getRiskTierConfig(tier: RiskTier) {
+  return RISK_TIER_CONFIGS[tier];
+}
+
+/**
+ * Generate unique league ID
+ */
+export function generateLeagueId(): string {
+  return `league_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Generate invite code for private leagues
+ */
+export function generateInviteCode(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+/**
+ * Create a new league
+ */
+export function createLeague(params: {
+  name: string;
+  type: LeagueType;
+  description: string;
+  createdBy: string;
+  competitionType: CompetitionType;
+  maxPlayers?: number;
+  prizePool?: number;
+  entryFee?: number;
+  masterAddress?: string;
+  narrative?: string;
+  riskTier?: RiskTier;
+}): League {
+  const now = Date.now();
+  const window = getCompetitionWindow(params.competitionType);
+  
+  return {
+    id: generateLeagueId(),
+    name: params.name,
+    type: params.type,
+    description: params.description,
+    createdBy: params.createdBy,
+    masterAddress: params.masterAddress,
+    narrative: params.narrative,
+    riskTier: params.riskTier,
+    inviteCode: params.type === 'invite' ? generateInviteCode() : undefined,
+    competitionType: params.competitionType,
+    playerCount: 0,
+    maxPlayers: params.maxPlayers || 100,
+    prizePool: params.prizePool || 0,
+    entryFee: params.entryFee || 0,
+    startsAt: window.startsAt.getTime(),
+    endsAt: window.endsAt.getTime(),
+    createdAt: now,
+    isActive: true,
+    isFeatured: false,
+  };
+}
+
+/**
+ * Check if portfolio meets risk tier requirements
+ */
+export function meetsRiskTierRequirements(
+  allocations: { symbol: string; percentage: number }[],
+  tier: RiskTier
+): boolean {
+  const config = RISK_TIER_CONFIGS[tier];
+  const highRiskAssets = ['PEPE', 'WIF', 'BONK', 'DEGEN', 'BRETT', 'TOSHI', 'HIGHER'];
+  
+  const highRiskPercentage = allocations
+    .filter(a => highRiskAssets.includes(a.symbol))
+    .reduce((sum, a) => sum + a.percentage, 0);
+  
+  return highRiskPercentage <= config.allowedHighRiskPercentage;
+}
+
+/**
+ * Create sample leagues for demo
+ */
+export function createSampleLeagues(): League[] {
+  const now = Date.now();
+  
+  return [
+    {
+      id: 'league_open_weekly',
+      name: 'Weekly Open Championship',
+      type: 'open',
+      description: 'The main weekly competition - open to all strategies',
+      createdBy: '0x0000000000000000000000000000000000000000',
+      competitionType: 'weekly',
+      playerCount: 128,
+      maxPlayers: 500,
+      prizePool: 1000,
+      entryFee: 0,
+      startsAt: now - 2 * 24 * 60 * 60 * 1000,
+      endsAt: now + 5 * 24 * 60 * 60 * 1000,
+      createdAt: now - 7 * 24 * 60 * 60 * 1000,
+      isActive: true,
+      isFeatured: true,
+    },
+    {
+      id: 'league_meme_masters',
+      name: 'Memecoin Masters',
+      type: 'narrative',
+      description: 'For the degen meme traders - memecoins only!',
+      narrative: 'memecoin',
+      createdBy: '0x0000000000000000000000000000000000000000',
+      competitionType: 'weekly',
+      playerCount: 45,
+      maxPlayers: 100,
+      prizePool: 500,
+      entryFee: 0,
+      startsAt: now - 2 * 24 * 60 * 60 * 1000,
+      endsAt: now + 5 * 24 * 60 * 60 * 1000,
+      createdAt: now - 7 * 24 * 60 * 60 * 1000,
+      isActive: true,
+      isFeatured: true,
+    },
+    {
+      id: 'league_blue_chip_bull',
+      name: 'Blue Chip Bull Followers',
+      type: 'master-follow',
+      description: 'Compete while emulating Blue Chip Bull\'s strategy',
+      masterAddress: '0x1234567890abcdef1234567890abcdef12345678',
+      createdBy: '0x0000000000000000000000000000000000000000',
+      competitionType: 'weekly',
+      playerCount: 32,
+      maxPlayers: 50,
+      prizePool: 250,
+      entryFee: 0,
+      startsAt: now - 2 * 24 * 60 * 60 * 1000,
+      endsAt: now + 5 * 24 * 60 * 60 * 1000,
+      createdAt: now - 7 * 24 * 60 * 60 * 1000,
+      isActive: true,
+      isFeatured: false,
+    },
+    {
+      id: 'league_conservative',
+      name: 'Conservative Club',
+      type: 'risk-tier',
+      description: 'Low-risk strategies only - max 10% meme exposure',
+      riskTier: 'conservative',
+      createdBy: '0x0000000000000000000000000000000000000000',
+      competitionType: 'monthly',
+      playerCount: 22,
+      maxPlayers: 100,
+      prizePool: 1000,
+      entryFee: 0,
+      startsAt: now - 10 * 24 * 60 * 60 * 1000,
+      endsAt: now + 20 * 24 * 60 * 60 * 1000,
+      createdAt: now - 30 * 24 * 60 * 60 * 1000,
+      isActive: true,
+      isFeatured: false,
+    },
+  ];
+}
+
+
+
+
+
 
 
 

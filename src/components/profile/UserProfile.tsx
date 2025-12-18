@@ -1,12 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { type Achievement } from '@/lib/achievements';
 import AchievementBadges from './AchievementBadges';
+import AchievementDetails from '@/components/achievements/AchievementDetails';
+import FollowButton from '@/components/social/FollowButton';
+import PortfolioViewer from '@/components/social/PortfolioViewer';
 
 type Props = {
   address: string;
   onClose?: () => void;
+  currentUserAddress?: string;
+  showFullDetails?: boolean;
 };
 
 type UserStats = {
@@ -29,11 +35,17 @@ const ASSET_COLORS: Record<string, string> = {
   USDC: '#2775CA',
 };
 
-export default function UserProfile({ address, onClose }: Props) {
+export default function UserProfile({ 
+  address, 
+  onClose,
+  currentUserAddress,
+  showFullDetails = false,
+}: Props) {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [stats, setStats] = useState<UserStats | null>(null);
   const [leaderboardEntry, setLeaderboardEntry] = useState<LeaderboardEntry | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAchievementDetails, setShowAchievementDetails] = useState(false);
 
   const shortAddress = `${address.slice(0, 6)}...${address.slice(-4)}`;
 
@@ -123,8 +135,16 @@ export default function UserProfile({ address, onClose }: Props) {
           </div>
 
           {/* Info */}
-          <div>
-            <h2 className="font-mono text-lg font-bold text-white">{shortAddress}</h2>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="font-mono text-lg font-bold text-white">{shortAddress}</h2>
+              {currentUserAddress && currentUserAddress.toLowerCase() !== address.toLowerCase() && (
+                <FollowButton
+                  address={currentUserAddress}
+                  targetAddress={address}
+                />
+              )}
+            </div>
             {leaderboardEntry && (
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-sm text-white/50">Current Rank:</span>
@@ -134,6 +154,12 @@ export default function UserProfile({ address, onClose }: Props) {
                 </span>
               </div>
             )}
+            <Link
+              href={`/profile/${address}`}
+              className="text-xs text-base-blue hover:text-base-blue-light mt-2 inline-block"
+            >
+              View full profile →
+            </Link>
           </div>
         </div>
 
@@ -186,15 +212,43 @@ export default function UserProfile({ address, onClose }: Props) {
       <div className="p-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-white">Achievements</h3>
-          <span className="text-xs text-white/40">
-            {achievements.length} earned
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-white/40">
+              {achievements.length} earned
+            </span>
+            <button
+              onClick={() => setShowAchievementDetails(!showAchievementDetails)}
+              className="text-xs text-base-blue hover:text-base-blue-light"
+            >
+              {showAchievementDetails ? 'Hide Details' : 'Show Details'}
+            </button>
+          </div>
         </div>
         <AchievementBadges achievements={achievements} showAll />
+        
+        {showAchievementDetails && (
+          <div className="mt-6">
+            <AchievementDetails address={address} />
+          </div>
+        )}
       </div>
+
+      {/* Portfolio Viewer */}
+      {showFullDetails && (
+        <div className="p-4 border-t border-white/5">
+          <PortfolioViewer
+            address={address}
+            currentUserAddress={currentUserAddress}
+          />
+        </div>
+      )}
     </div>
   );
 }
+
+
+
+
 
 
 

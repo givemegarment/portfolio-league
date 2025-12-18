@@ -12,7 +12,16 @@ export type AchievementType =
   | 'early_adopter'
   | 'contrarian'
   | 'consistent'
-  | 'top_10_percent';
+  | 'top_10_percent'
+  // New Imitatio-specific achievements
+  | 'first_emulation'
+  | 'perfect_adaptation'
+  | 'master_beater'
+  | 'narrative_master'
+  | 'league_champion'
+  | 'streak_keeper'
+  | 'diversification_guru'
+  | 'risk_taker';
 
 export type Achievement = {
   id: string;
@@ -101,6 +110,71 @@ export const ACHIEVEMENT_DEFINITIONS: Record<AchievementType, AchievementDefinit
     icon: '⭐',
     rarity: 'uncommon',
     criteria: 'Rank in top 10% at week end',
+  },
+  // New Imitatio-specific achievements
+  first_emulation: {
+    type: 'first_emulation',
+    name: 'First Steps',
+    description: 'Completed your first Master emulation',
+    icon: '🎓',
+    rarity: 'common',
+    criteria: 'Submit a portfolio based on a Master template',
+  },
+  perfect_adaptation: {
+    type: 'perfect_adaptation',
+    name: 'Perfect Adaptation',
+    description: 'Beat the Master you emulated',
+    icon: '🏅',
+    rarity: 'rare',
+    criteria: 'Outperform your emulated Master by 5%+',
+  },
+  master_beater: {
+    type: 'master_beater',
+    name: 'Master Beater',
+    description: 'Beat 5 different Masters in a season',
+    icon: '👑',
+    rarity: 'epic',
+    criteria: 'Outperform 5 unique Masters in one season',
+  },
+  narrative_master: {
+    type: 'narrative_master',
+    name: 'Narrative Master',
+    description: 'Won a narrative-specific league',
+    icon: '📖',
+    rarity: 'rare',
+    criteria: 'Finish #1 in any narrative league',
+  },
+  league_champion: {
+    type: 'league_champion',
+    name: 'League Champion',
+    description: 'Won a competitive league',
+    icon: '🏆',
+    rarity: 'epic',
+    criteria: 'Finish #1 in any league competition',
+  },
+  streak_keeper: {
+    type: 'streak_keeper',
+    name: 'Streak Keeper',
+    description: 'Maintained a 10-week winning streak',
+    icon: '💫',
+    rarity: 'legendary',
+    criteria: 'Top 10% for 10 consecutive weeks',
+  },
+  diversification_guru: {
+    type: 'diversification_guru',
+    name: 'Diversification Guru',
+    description: 'Won with a highly diversified portfolio',
+    icon: '🎯',
+    rarity: 'uncommon',
+    criteria: 'Win with 5+ assets and diversification score > 80%',
+  },
+  risk_taker: {
+    type: 'risk_taker',
+    name: 'Risk Taker',
+    description: 'Won in the Degen risk tier league',
+    icon: '🎰',
+    rarity: 'rare',
+    criteria: 'Finish top 10% in aggressive risk tier',
   },
 };
 
@@ -193,6 +267,106 @@ export function checkGiantSlayer(
 }
 
 /**
+ * Check for first emulation achievement
+ */
+export function checkFirstEmulation(
+  hasEmulatedBefore: boolean,
+  hasEmulatedNow: boolean
+): boolean {
+  return !hasEmulatedBefore && hasEmulatedNow;
+}
+
+/**
+ * Check for perfect adaptation (beat the Master you emulated)
+ */
+export function checkPerfectAdaptation(
+  userScore: number,
+  masterScore: number,
+  threshold: number = 5
+): boolean {
+  return userScore - masterScore >= threshold;
+}
+
+/**
+ * Check for master beater (beat 5 different Masters)
+ */
+export function checkMasterBeater(
+  beatenMasters: string[]
+): boolean {
+  const uniqueMasters = new Set(beatenMasters);
+  return uniqueMasters.size >= 5;
+}
+
+/**
+ * Check for narrative master (won a narrative league)
+ */
+export function checkNarrativeMaster(
+  rank: number,
+  leagueType: string
+): boolean {
+  return rank === 1 && leagueType === 'narrative';
+}
+
+/**
+ * Check for league champion
+ */
+export function checkLeagueChampion(
+  rank: number
+): boolean {
+  return rank === 1;
+}
+
+/**
+ * Check for streak keeper (10-week streak)
+ */
+export function checkStreakKeeper(
+  weeklyResults: Array<{ week: number; rank: number; totalPlayers: number }>
+): boolean {
+  if (weeklyResults.length < 10) return false;
+  
+  const sorted = [...weeklyResults].sort((a, b) => b.week - a.week);
+  
+  let consecutiveTopPerformances = 0;
+  for (let i = 0; i < sorted.length && consecutiveTopPerformances < 10; i++) {
+    const { rank, totalPlayers } = sorted[i];
+    if (checkTop10Percent(rank, totalPlayers)) {
+      consecutiveTopPerformances++;
+    } else {
+      break;
+    }
+  }
+  
+  return consecutiveTopPerformances >= 10;
+}
+
+/**
+ * Check for diversification guru
+ */
+export function checkDiversificationGuru(
+  allocations: Array<{ symbol: string; percentage: number }>,
+  diversificationScore: number,
+  rank: number,
+  totalPlayers: number
+): boolean {
+  const hasEnoughAssets = allocations.length >= 5;
+  const highDiversification = diversificationScore >= 80;
+  const isTop10 = checkTop10Percent(rank, totalPlayers);
+  
+  return hasEnoughAssets && highDiversification && isTop10;
+}
+
+/**
+ * Check for risk taker
+ */
+export function checkRiskTaker(
+  rank: number,
+  totalPlayers: number,
+  riskTier: string
+): boolean {
+  return checkTop10Percent(rank, totalPlayers) && riskTier === 'aggressive';
+}
+
+/**
  * Create an achievement object
  */
 export function createAchievement(
@@ -261,6 +435,10 @@ export function getRarityBackground(rarity: Achievement['rarity']): string {
 export function getAllAchievementDefinitions(): AchievementDefinition[] {
   return Object.values(ACHIEVEMENT_DEFINITIONS);
 }
+
+
+
+
 
 
 

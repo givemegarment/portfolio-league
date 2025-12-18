@@ -268,8 +268,26 @@ export default function Nav() {
           </div>
         </Link>
 
-        {/* Center - Timer */}
-        <div className="hidden md:block">
+        {/* Center - Navigation Links */}
+        <div className="hidden md:flex items-center gap-6">
+          <Link
+            href="/masters"
+            className="text-sm font-medium text-white/60 hover:text-white transition-colors"
+          >
+            Masters
+          </Link>
+          <Link
+            href="/leagues"
+            className="text-sm font-medium text-white/60 hover:text-white transition-colors"
+          >
+            Leagues
+          </Link>
+          <Link
+            href="/how-to-play"
+            className="text-sm font-medium text-white/60 hover:text-white transition-colors"
+          >
+            Learn
+          </Link>
           <CountdownTimer />
         </div>
 
