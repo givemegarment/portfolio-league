@@ -21,7 +21,8 @@ const LEAGUE_MEMBERS_KEY_PREFIX = 'league:members:';
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const type = searchParams.get('type') as LeagueType | null;
+    const typeParam = searchParams.get('type');
+    const type: LeagueType | null = typeParam && typeParam !== 'all' ? (typeParam as LeagueType) : null;
     const active = searchParams.get('active') === 'true';
     const featured = searchParams.get('featured') === 'true';
 
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Filter by type
-    if (type && type !== 'all') {
+    if (type) {
       leagues = leagues.filter((l) => l.type === type);
     }
 
