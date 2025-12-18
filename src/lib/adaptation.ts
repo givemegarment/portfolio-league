@@ -53,10 +53,10 @@ export function calculateSimilarityScore(
   masterHoldings: MasterHolding[]
 ): number {
   // Get all unique symbols
-  const allSymbols = new Set([
+  const allSymbols = Array.from(new Set([
     ...userAllocations.map(a => a.symbol),
     ...masterHoldings.map(h => h.symbol),
-  ]);
+  ]));
 
   // Create allocation vectors
   const userVector: number[] = [];
