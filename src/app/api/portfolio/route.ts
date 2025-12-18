@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
 import { getCurrentWeek, isLocked, getWeekKey } from '@/lib/weeks';
-import { calculateScore, type StoredPortfolio as ScoringStoredPortfolio, type PriceData } from '@/lib/scoring';
+import { calculateScore, type StoredPortfolio as ScoringStoredPortfolio, type PriceData as ScoringPriceData } from '@/lib/scoring';
 
 type AllocationItem = {
   symbol: string;
@@ -74,9 +74,9 @@ async function fetchCurrentPrices(): Promise<Record<string, number>> {
 }
 
 /**
- * Fetch current prices with full PriceData format
+ * Fetch current prices with full PriceData format for scoring
  */
-async function fetchCurrentPricesWithData(): Promise<Record<string, PriceData>> {
+async function fetchCurrentPricesWithData(): Promise<Record<string, ScoringPriceData>> {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
   
   try {
@@ -89,7 +89,15 @@ async function fetchCurrentPricesWithData(): Promise<Record<string, PriceData>> 
     }
     
     const data: PricesResponse = await response.json();
-    return data.prices;
+    // Convert to ScoringPriceData format (only needs price, change24h is optional)
+    const scoringPrices: Record<string, ScoringPriceData> = {};
+    for (const [symbol, priceData] of Object.entries(data.prices)) {
+      scoringPrices[symbol] = {
+        price: priceData.price,
+        change24h: priceData.change24h,
+      };
+    }
+    return scoringPrices;
   } catch (error) {
     console.error('Error fetching prices:', error);
     // Fallback prices
@@ -242,7 +250,7 @@ export async function GET(req: Request) {
     assetReturn: number;
     weightedReturn: number;
   }> = [];
-  let currentPrices: Record<string, PriceData> | undefined = undefined;
+  let currentPrices: Record<string, ScoringPriceData> | undefined = undefined;
 
   if (portfolio && portfolio.entryPrices && Object.keys(portfolio.entryPrices).length > 0) {
     try {
