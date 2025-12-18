@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { redis, getAllPortfolioKeys } from '@/lib/redis';
-import { getCurrentWeek } from '@/lib/weeks';
+import { redis } from '@/lib/redis';
+import { getCurrentWeek, getWeekKey } from '@/lib/weeks';
 import { calculateScore, type StoredPortfolio, type PriceData } from '@/lib/scoring';
 
 type HistoricalPortfolio = {
@@ -74,66 +74,113 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'address required' }, { status: 400 });
   }
 
-  // Get all portfolio keys
-  const allKeys = await getAllPortfolioKeys();
-  
-  if (allKeys.length === 0) {
-    return NextResponse.json({ 
-      address,
-      history: [],
-      currentWeek: getCurrentWeek(),
-    });
-  }
-
-  // Get current prices for calculating current week's score
-  const currentPrices = await fetchCurrentPrices();
+  // Get current week info
   const { season: currentSeason, week: currentWeekNum } = getCurrentWeek();
+  
+  // Get current prices for calculating scores
+  const currentPrices = await fetchCurrentPrices();
 
   const history: HistoricalPortfolio[] = [];
-
-  // Fetch portfolio from each week key
-  for (const key of allKeys) {
-    // Parse key format: portfolio:s1:53
-    const parts = key.split(':');
-    if (parts.length !== 3) continue;
-    
-    const season = parts[1];
-    const week = parseInt(parts[2]);
-    
-    if (isNaN(week)) continue;
-
+  
+  // Scan weeks from current week back to week 1 (scan last 16 weeks max for performance)
+  const maxWeeksToScan = 16;
+  const startWeek = Math.max(1, currentWeekNum - maxWeeksToScan + 1);
+  
+  for (let week = currentWeekNum; week >= startWeek; week--) {
     try {
-      // Get all portfolios for this week to calculate rank
-      // @upstash/redis auto-deserializes JSON, so we get objects directly
-      const allPortfolios = await redis.hgetall<Record<string, StoredPortfolio>>(key);
+      const weekKey = getWeekKey(currentSeason, week);
       
-      if (!allPortfolios) continue;
+      // Get all portfolios for this week
+      const allPortfolios = await redis.hgetall<Record<string, string>>(weekKey);
       
-      // Find the user's address key (case-insensitive) since Ethereum addresses are case-insensitive
+      if (!allPortfolios || Object.keys(allPortfolios).length === 0) {
+        continue; // No portfolios for this week
+      }
+      
+      // Find the user's address key (case-insensitive)
       const userAddressKey = Object.keys(allPortfolios).find(
         (k) => k.toLowerCase() === address.toLowerCase()
       );
       
-      if (!userAddressKey) continue;
+      if (!userAddressKey) {
+        continue; // User doesn't have a portfolio for this week
+      }
+      
+      // Parse user's portfolio
+      let portfolio: StoredPortfolio;
+      try {
+        const portfolioJson = allPortfolios[userAddressKey];
+        const parsed = JSON.parse(portfolioJson);
+        
+        // Handle new format with entryPrices
+        if (parsed.allocations && Array.isArray(parsed.allocations)) {
+          portfolio = parsed as StoredPortfolio;
+        }
+        // Handle legacy format (just array of symbols)
+        else if (Array.isArray(parsed)) {
+          const symbols = parsed as string[];
+          const equalWeight = Math.floor(100 / symbols.length);
+          const remainder = 100 - (equalWeight * symbols.length);
+          
+          portfolio = {
+            allocations: symbols.map((symbol, idx) => ({
+              symbol,
+              percentage: equalWeight + (idx === 0 ? remainder : 0),
+            })),
+            entryPrices: {},
+            timestamp: 0,
+          };
+        } else {
+          continue; // Invalid format
+        }
+      } catch (parseError) {
+        console.error(`Error parsing portfolio for week ${week}:`, parseError);
+        continue;
+      }
       
       const totalParticipants = Object.keys(allPortfolios).length;
       
       // Calculate scores for all participants to determine rank
       const scores: { address: string; score: number }[] = [];
       
-      for (const [userAddress, portfolioData] of Object.entries(allPortfolios)) {
+      for (const [userAddr, portfolioJson] of Object.entries(allPortfolios)) {
         try {
-          // @upstash/redis auto-deserializes, so portfolioData is already an object
-          const userPortfolio = portfolioData as StoredPortfolio;
+          const parsed = JSON.parse(portfolioJson);
+          let userPortfolio: StoredPortfolio;
+          
+          if (parsed.allocations && parsed.entryPrices) {
+            userPortfolio = parsed as StoredPortfolio;
+          } else if (parsed.allocations && Array.isArray(parsed.allocations)) {
+            userPortfolio = {
+              allocations: parsed.allocations,
+              entryPrices: {},
+              timestamp: parsed.timestamp || 0,
+            };
+          } else if (Array.isArray(parsed)) {
+            const symbols = parsed as string[];
+            const equalWeight = Math.floor(100 / symbols.length);
+            const remainder = 100 - (equalWeight * symbols.length);
+            userPortfolio = {
+              allocations: symbols.map((symbol, idx) => ({
+                symbol,
+                percentage: equalWeight + (idx === 0 ? remainder : 0),
+              })),
+              entryPrices: {},
+              timestamp: 0,
+            };
+          } else {
+            scores.push({ address: userAddr, score: 0 });
+            continue;
+          }
           
           if (userPortfolio.entryPrices && Object.keys(userPortfolio.entryPrices).length > 0) {
             const result = calculateScore(userPortfolio, currentPrices);
-            scores.push({ address: userAddress, score: result.totalScore });
+            scores.push({ address: userAddr, score: result.totalScore });
           } else {
-            scores.push({ address: userAddress, score: 0 });
+            scores.push({ address: userAddr, score: 0 });
           }
         } catch {
-          scores.push({ address: userAddress, score: 0 });
+          scores.push({ address: userAddr, score: 0 });
         }
       }
       
@@ -145,14 +192,13 @@ export async function GET(req: Request) {
         (s) => s.address.toLowerCase() === address.toLowerCase()
       ) + 1;
       
-      // Get user's portfolio and score using the actual key from Redis
-      const portfolio = allPortfolios[userAddressKey] as StoredPortfolio;
+      // Get user's score
       const userScore = scores.find(
         (s) => s.address.toLowerCase() === address.toLowerCase()
       )?.score || 0;
 
       history.push({
-        season,
+        season: currentSeason,
         week,
         allocations: portfolio.allocations,
         entryPrices: portfolio.entryPrices,
@@ -162,7 +208,7 @@ export async function GET(req: Request) {
         totalParticipants,
       });
     } catch (error) {
-      console.error(`Error processing portfolio for key ${key}:`, error);
+      console.error(`Error processing portfolio for week ${week}:`, error);
       continue;
     }
   }

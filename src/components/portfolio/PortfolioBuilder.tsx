@@ -5,6 +5,7 @@ import Image from 'next/image';
 import ShareButtons from '@/components/share/ShareButtons';
 import CoachPanel from '@/components/coach/CoachPanel';
 import { type Suggestion } from '@/lib/ai-coach';
+import { calculateScore, type StoredPortfolio } from '@/lib/scoring';
 
 const ASSETS = [
   { 
@@ -62,6 +63,14 @@ export default function PortfolioBuilder({ address }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(true);
   const [portfolioInitialized, setPortfolioInitialized] = useState(false);
+  const [liveReturn, setLiveReturn] = useState<number | undefined>(undefined);
+  const [livePortfolioValue, setLivePortfolioValue] = useState<number | undefined>(undefined);
+  const [scoreBreakdown, setScoreBreakdown] = useState<Array<{
+    symbol: string;
+    percentage: number;
+    assetReturn: number;
+    weightedReturn: number;
+  }>>([]);
 
   // Fetch real prices from API
   useEffect(() => {
@@ -96,6 +105,50 @@ export default function PortfolioBuilder({ address }: Props) {
     const interval = setInterval(fetchPrices, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // Calculate live portfolio return when we have entry prices and current prices
+  useEffect(() => {
+    if (allocations.length === 0 || Object.keys(entryPrices).length === 0 || Object.keys(prices).length === 0) {
+      setLiveReturn(undefined);
+      setLivePortfolioValue(undefined);
+      setScoreBreakdown([]);
+      return;
+    }
+
+    try {
+      // Create StoredPortfolio object for calculation
+      const portfolio: StoredPortfolio = {
+        allocations: allocations.map(a => ({ symbol: a.symbol, percentage: a.percentage })),
+        entryPrices,
+        timestamp: savedTimestamp || Date.now(),
+      };
+
+      // Convert prices to PriceData format
+      const priceDataMap: Record<string, { price: number; change24h?: number }> = {};
+      for (const [symbol, priceData] of Object.entries(prices)) {
+        priceDataMap[symbol] = {
+          price: priceData.price,
+          change24h: priceData.change24h,
+        };
+      }
+
+      // Calculate score
+      const result = calculateScore(portfolio, priceDataMap);
+      setLiveReturn(result.totalScore);
+      
+      // Calculate portfolio value (starting from base value of 100)
+      const BASE_VALUE = 100;
+      const portfolioValue = BASE_VALUE * (1 + result.totalScore / 100);
+      setLivePortfolioValue(portfolioValue);
+      
+      // Store breakdown
+      setScoreBreakdown(result.breakdown);
+    } catch (error) {
+      console.error('Error calculating live portfolio return:', error);
+      setLiveReturn(undefined);
+      setLivePortfolioValue(undefined);
+    }
+  }, [allocations, entryPrices, prices, savedTimestamp]);
 
   // Load existing portfolio if user is connected
   useEffect(() => {
@@ -403,27 +456,55 @@ export default function PortfolioBuilder({ address }: Props) {
                 )}
               </div>
             </div>
-            {currentRank && (
-              <div className="flex items-center gap-2 rounded-full bg-accent-amber/10 px-3 py-1.5 border border-accent-amber/20">
-                <span className="text-xs text-white/60">Rank</span>
-                <span className="text-sm font-bold text-accent-amber">#{currentRank}</span>
-              </div>
-            )}
           </div>
           
-          {/* Performance */}
-          {currentScore !== undefined && (
-            <div className="flex items-center gap-4 mb-4 p-3 rounded-xl bg-white/5">
-              <div>
-                <span className="text-xs text-white/40 block">Current Return</span>
-                <span className={`text-xl font-bold font-mono ${currentScore >= 0 ? 'text-accent-emerald' : 'text-accent-rose'}`}>
-                  {currentScore >= 0 ? '+' : ''}{currentScore.toFixed(2)}%
-                </span>
+          {/* Live Performance */}
+          {(liveReturn !== undefined || currentScore !== undefined) && (
+            <div className="mb-4 space-y-3">
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-white/5 to-white/[0.02] border border-white/10">
+                <div className="flex-1">
+                  <span className="text-xs text-white/40 block mb-1">Current Return</span>
+                  <div className="flex items-baseline gap-2">
+                    <span className={`text-2xl font-bold font-mono ${(liveReturn ?? currentScore ?? 0) >= 0 ? 'text-accent-emerald' : 'text-accent-rose'}`}>
+                      {(liveReturn ?? currentScore ?? 0) >= 0 ? '+' : ''}{(liveReturn ?? currentScore ?? 0).toFixed(2)}%
+                    </span>
+                    {livePortfolioValue !== undefined && (
+                      <span className="text-sm text-white/60 font-mono">
+                        (${livePortfolioValue.toFixed(2)})
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {currentRank && (
+                  <div className="flex items-center gap-2 rounded-full bg-accent-amber/10 px-3 py-1.5 border border-accent-amber/20">
+                    <span className="text-xs text-white/60">Rank</span>
+                    <span className="text-sm font-bold text-accent-amber">#{currentRank}</span>
+                  </div>
+                )}
               </div>
+              
+              {/* Score Breakdown */}
+              {scoreBreakdown.length > 0 && (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {scoreBreakdown.map((item) => (
+                    <div key={item.symbol} className="rounded-lg bg-white/[0.03] p-2">
+                      <div className="text-xs text-white/40 mb-1">{item.symbol}</div>
+                      <div className={`text-sm font-bold font-mono ${item.assetReturn >= 0 ? 'text-accent-emerald' : 'text-accent-rose'}`}>
+                        {item.assetReturn >= 0 ? '+' : ''}{item.assetReturn.toFixed(2)}%
+                      </div>
+                      <div className="text-xs text-white/30 mt-0.5">
+                        {item.percentage}% • {item.weightedReturn >= 0 ? '+' : ''}{item.weightedReturn.toFixed(2)}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* Entry Prices */}
               {Object.keys(entryPrices).length > 0 && (
-                <div className="flex-1 flex flex-wrap gap-2 justify-end">
+                <div className="flex flex-wrap gap-2 text-xs">
                   {allocations.filter(a => a.percentage > 0).map(a => (
-                    <div key={a.symbol} className="text-xs text-white/50">
+                    <div key={a.symbol} className="text-white/50">
                       <span className="font-mono">{a.symbol}</span>
                       <span className="text-white/30 ml-1">
                         @${entryPrices[a.symbol]?.toLocaleString() || '—'}

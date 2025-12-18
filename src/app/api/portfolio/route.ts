@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
 import { getCurrentWeek, isLocked, getWeekKey } from '@/lib/weeks';
+import { calculateScore, type StoredPortfolio as ScoringStoredPortfolio, type PriceData } from '@/lib/scoring';
 
 type AllocationItem = {
   symbol: string;
@@ -16,6 +17,11 @@ type PricesResponse = {
   prices: Record<string, PriceData>;
   lastUpdated: number;
   cached: boolean;
+};
+
+type PriceDataWithChange = {
+  price: number;
+  change24h: number;
 };
 
 type SavePayload = {
@@ -63,6 +69,35 @@ async function fetchCurrentPrices(): Promise<Record<string, number>> {
       ETH: 3600,
       SOL: 230,
       USDC: 1,
+    };
+  }
+}
+
+/**
+ * Fetch current prices with full PriceData format
+ */
+async function fetchCurrentPricesWithData(): Promise<Record<string, PriceData>> {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+  
+  try {
+    const response = await fetch(`${baseUrl}/api/prices`, {
+      cache: 'no-store',
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch prices');
+    }
+    
+    const data: PricesResponse = await response.json();
+    return data.prices;
+  } catch (error) {
+    console.error('Error fetching prices:', error);
+    // Fallback prices
+    return {
+      BTC: { price: 97000, change24h: 0 },
+      ETH: { price: 3600, change24h: 0 },
+      SOL: { price: 230, change24h: 0 },
+      USDC: { price: 1, change24h: 0 },
     };
   }
 }
@@ -199,6 +234,36 @@ export async function GET(req: Request) {
     }
   }
 
+  // Calculate current score if portfolio has entry prices
+  let currentScore: number | undefined = undefined;
+  let scoreBreakdown: Array<{
+    symbol: string;
+    percentage: number;
+    assetReturn: number;
+    weightedReturn: number;
+  }> = [];
+  let currentPrices: Record<string, PriceData> | undefined = undefined;
+
+  if (portfolio && portfolio.entryPrices && Object.keys(portfolio.entryPrices).length > 0) {
+    try {
+      currentPrices = await fetchCurrentPricesWithData();
+      
+      // Convert to ScoringStoredPortfolio format
+      const scoringPortfolio: ScoringStoredPortfolio = {
+        allocations: portfolio.allocations,
+        entryPrices: portfolio.entryPrices,
+        timestamp: portfolio.timestamp,
+      };
+      
+      const result = calculateScore(scoringPortfolio, currentPrices);
+      currentScore = result.totalScore;
+      scoreBreakdown = result.breakdown;
+    } catch (error) {
+      console.error('Error calculating current score:', error);
+      // Continue without score
+    }
+  }
+
   return NextResponse.json({ 
     address, 
     portfolio,
@@ -207,5 +272,10 @@ export async function GET(req: Request) {
     week,
     isLocked: isLocked(),
     weekInfo: currentWeek,
+    currentScore,
+    scoreBreakdown,
+    currentPrices: currentPrices ? Object.fromEntries(
+      Object.entries(currentPrices).map(([k, v]) => [k, v.price])
+    ) : undefined,
   });
 }

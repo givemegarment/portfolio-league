@@ -1,4 +1,5 @@
-import { Redis } from '@upstash/redis'
+import { Redis } from '@upstash/redis';
+import { getCurrentWeek, getWeekKey } from './weeks';
 
 // Check for required environment variables
 if (!process.env.UPSTASH_REDIS_REST_URL) {
@@ -59,13 +60,47 @@ export async function testRedisConnection(): Promise<{
 
 /**
  * Get all portfolio keys across all seasons/weeks
+ * 
+ * Note: Upstash Redis REST API may have limitations with KEYS command.
+ * This function tries KEYS first, then falls back to week-based scanning.
  */
 export async function getAllPortfolioKeys(): Promise<string[]> {
   try {
+    // Try using KEYS command first (works with standard Redis)
     const keys = await redis.keys('portfolio:*');
+    if (keys && keys.length > 0) {
+      return keys;
+    }
+  } catch (error) {
+    console.warn('KEYS command failed or returned empty, using fallback:', error);
+  }
+  
+  // Fallback: Scan known week ranges
+  // This is more reliable but requires knowing the week structure
+  try {
+    const keys: string[] = [];
+    const { season, week } = getCurrentWeek();
+    
+    // Scan last 20 weeks as fallback
+    const maxWeeks = 20;
+    const startWeek = Math.max(1, week - maxWeeks + 1);
+    
+    for (let w = week; w >= startWeek; w--) {
+      const weekKey = getWeekKey(season, w);
+      // Check if key exists by trying to get a count
+      try {
+        const count = await redis.hlen(weekKey);
+        if (count > 0) {
+          keys.push(weekKey);
+        }
+      } catch {
+        // Key doesn't exist or error, skip
+      }
+    }
+    
     return keys;
   } catch (error) {
-    console.error('Error getting portfolio keys:', error);
+    console.error('Error in fallback portfolio key scanning:', error);
     return [];
   }
 }
