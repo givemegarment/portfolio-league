@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Nav from '@/components/chrome/Nav';
 import MasterCard from '@/components/masters/MasterCard';
 import MasterFilters, { FilterState } from '@/components/masters/MasterFilters';
-import { Master, createSampleMasters, sortMastersByPerformance } from '@/lib/masters';
+import { Master, sortMastersByPerformance } from '@/lib/masters';
 import { NarrativeType } from '@/lib/narratives';
 
 export default function MastersPage() {
@@ -16,9 +16,42 @@ export default function MastersPage() {
     sortBy: 'return7D',
     search: '',
   });
+  const [allMasters, setAllMasters] = useState<Master[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load sample masters (in production, this would be an API call)
-  const allMasters = useMemo(() => createSampleMasters(), []);
+  // Fetch masters from API
+  useEffect(() => {
+    const fetchMasters = async () => {
+      try {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (filters.narrative !== 'all') {
+          params.set('narrative', filters.narrative);
+        }
+        if (filters.tier !== 'all') {
+          params.set('tier', filters.tier);
+        }
+        params.set('sortBy', filters.sortBy);
+        params.set('limit', '100');
+
+        const response = await fetch(`/api/masters?${params.toString()}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch masters');
+        }
+        const data = await response.json();
+        setAllMasters(data.masters || []);
+        setError(null);
+      } catch (err) {
+        console.error('Error fetching masters:', err);
+        setError('Failed to load masters. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMasters();
+  }, [filters.narrative, filters.tier, filters.sortBy]);
 
   // Apply filters
   const filteredMasters = useMemo(() => {
@@ -69,6 +102,47 @@ export default function MastersPage() {
   const handleMasterClick = (master: Master) => {
     router.push(`/masters/${master.address}`);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        <Nav />
+        <main className="mx-auto max-w-6xl px-4 py-8">
+          <div className="animate-pulse space-y-6">
+            <div className="h-48 rounded-2xl bg-white/5" />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="h-64 rounded-2xl bg-white/5" />
+              ))}
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen">
+        <Nav />
+        <main className="mx-auto max-w-6xl px-4 py-8">
+          <div className="rounded-2xl border border-white/5 bg-surface-2 p-12 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5 text-3xl">
+              ⚠️
+            </div>
+            <h3 className="text-lg font-bold text-white">Error Loading Masters</h3>
+            <p className="mt-2 text-sm text-white/60">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/20"
+            >
+              Retry
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">

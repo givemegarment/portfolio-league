@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMaster, createSampleMasters, Master } from '@/lib/masters';
+import { getMaster } from '@/lib/masters';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,9 +10,7 @@ export async function GET(
   try {
     const address = params.address.toLowerCase();
 
-    // In production: await getMaster(address);
-    const masters = createSampleMasters();
-    const master = masters.find(m => m.address.toLowerCase() === address);
+    const master = await getMaster(address);
 
     if (!master) {
       return NextResponse.json(

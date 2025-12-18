@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAccount } from 'wagmi';
 import Nav from '@/components/chrome/Nav';
 import MasterHoldings from '@/components/masters/MasterHoldings';
 import MasterPerformance from '@/components/masters/MasterPerformance';
-import { Master, createSampleMasters, getTierColor, getTierLabel } from '@/lib/masters';
+import PerformanceChart from '@/components/portfolio/PerformanceChart';
+import { Master, getTierColor, getTierLabel } from '@/lib/masters';
 import { getNarrative, getRiskLevelColor, getRiskLevelLabel } from '@/lib/narratives';
 import { createEmulationTemplate } from '@/lib/adaptation';
 import { formatScore } from '@/lib/scoring';
@@ -18,19 +19,39 @@ export default function MasterDetailPage() {
   const [master, setMaster] = useState<Master | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [followLoading, setFollowLoading] = useState(false);
 
   const address = params.address as string;
 
-  // Load master data
+  // Load master data and follow status
   useEffect(() => {
-    // In production, this would be an API call
-    const masters = createSampleMasters();
-    const found = masters.find(
-      (m) => m.address.toLowerCase() === address.toLowerCase()
-    );
-    setMaster(found || null);
-    setLoading(false);
-  }, [address]);
+    const fetchMaster = async () => {
+      try {
+        setLoading(true);
+        const [masterRes, followRes] = await Promise.all([
+          fetch(`/api/masters/${address}`),
+          userAddress ? fetch(`/api/masters/${address}/follow?userAddress=${userAddress}`) : null,
+        ]);
+
+        if (!masterRes.ok) {
+          throw new Error('Failed to fetch master');
+        }
+        const masterData = await masterRes.json();
+        setMaster(masterData);
+
+        if (followRes && followRes.ok) {
+          const followData = await followRes.json();
+          setIsFollowing(followData.following || false);
+        }
+      } catch (error) {
+        console.error('Error fetching master:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMaster();
+  }, [address, userAddress]);
 
   const narrative = master ? getNarrative(master.primaryNarrative) : null;
   const tierColor = master ? getTierColor(master.tier) : '#71717A';
@@ -49,9 +70,43 @@ export default function MasterDetailPage() {
     router.push('/');
   };
 
-  const handleFollow = () => {
-    setIsFollowing(!isFollowing);
-    // In production, this would call the API
+  const handleFollow = async () => {
+    if (!userAddress || !master) return;
+    
+    try {
+      setFollowLoading(true);
+      const response = await fetch(`/api/masters/${master.address}/follow`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userAddress,
+          action: isFollowing ? 'unfollow' : 'follow',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update follow status');
+      }
+
+      const data = await response.json();
+      if (data.success) {
+        setIsFollowing(data.following);
+        // Update master's follower count locally
+        if (master) {
+          setMaster({
+            ...master,
+            followerCount: data.following
+              ? master.followerCount + 1
+              : Math.max(0, master.followerCount - 1),
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Follow error:', error);
+      // Optionally show error toast/notification
+    } finally {
+      setFollowLoading(false);
+    }
   };
 
   if (loading) {
@@ -212,7 +267,8 @@ export default function MasterDetailPage() {
             <div className="flex gap-3">
               <button
                 onClick={handleFollow}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all ${
+                disabled={!userAddress || followLoading}
+                className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                   isFollowing
                     ? 'bg-base-blue text-white'
                     : 'border border-white/10 bg-white/5 text-white hover:bg-white/10'
@@ -279,6 +335,9 @@ export default function MasterDetailPage() {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Main content */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Portfolio Performance Chart */}
+            <PerformanceChart address={master.address} height={250} />
+            
             <MasterPerformance performance={master.performance} />
             
             {/* Strategy insights */}

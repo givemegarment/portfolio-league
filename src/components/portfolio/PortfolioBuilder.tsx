@@ -4,20 +4,39 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import ShareButtons from '@/components/share/ShareButtons';
 import CoachPanel from '@/components/coach/CoachPanel';
-import AssetSelector from '@/components/portfolio/AssetSelector';
-import { SUPPORTED_ASSETS, getAsset, type Asset } from '@/lib/assets';
 import { type Suggestion } from '@/lib/ai-coach';
-import { playSuccessBeep, playErrorBeep } from '@/lib/sounds';
 
-type Allocation = { symbol: string; percentage: number };
+const ASSETS = [
+  { 
+    symbol: 'BTC', 
+    name: 'Bitcoin', 
+    color: '#F7931A',
+    logo: '/coins/btc.svg',
+  },
+  { 
+    symbol: 'ETH', 
+    name: 'Ethereum', 
+    color: '#627EEA',
+    logo: '/coins/eth.svg',
+  },
+  { 
+    symbol: 'SOL', 
+    name: 'Solana', 
+    color: '#9945FF',
+    logo: '/coins/sol.svg',
+  },
+  { 
+    symbol: 'USDC', 
+    name: 'USD Coin', 
+    color: '#2775CA',
+    logo: '/coins/usdc.svg',
+  },
+] as const;
+
+type AssetSymbol = typeof ASSETS[number]['symbol'];
+type Allocation = { symbol: AssetSymbol; percentage: number };
 type PriceData = { price: number; change24h: number };
 type Props = { address?: `0x${string}` };
-
-type EmulationTemplate = {
-  masterAddress: string;
-  masterName: string;
-  allocations: Allocation[];
-};
 
 // Default allocations for new users
 const DEFAULT_ALLOCATIONS: Allocation[] = [
@@ -43,26 +62,6 @@ export default function PortfolioBuilder({ address }: Props) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [portfolioLoading, setPortfolioLoading] = useState(true);
   const [portfolioInitialized, setPortfolioInitialized] = useState(false);
-  const [emulatingMaster, setEmulatingMaster] = useState<EmulationTemplate | null>(null);
-
-  // Check for emulation template on mount
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    const templateData = sessionStorage.getItem('emulation_template');
-    if (templateData) {
-      try {
-        const template: EmulationTemplate = JSON.parse(templateData);
-        setEmulatingMaster(template);
-        setAllocations(template.allocations);
-        setPortfolioInitialized(true);
-        // Clear the template after loading
-        sessionStorage.removeItem('emulation_template');
-      } catch (e) {
-        console.error('Error parsing emulation template:', e);
-      }
-    }
-  }, []);
 
   // Fetch real prices from API
   useEffect(() => {
@@ -190,20 +189,17 @@ export default function PortfolioBuilder({ address }: Props) {
   const totalPercentage = allocations.reduce((sum, a) => sum + a.percentage, 0);
   const isValid = totalPercentage === 100 && allocations.length > 0;
 
-  const toggleAsset = (symbol: string) => {
-    const existing = allocations.find(a => a.symbol === symbol);
-    if (existing) {
-      // Remove asset (but keep at least 1)
-      if (allocations.length > 1) {
-        setAllocations(prev => prev.filter(a => a.symbol !== symbol));
-      }
-    } else {
-      // Add asset with 0% allocation
-      setAllocations(prev => [...prev, { symbol, percentage: 0 }]);
-    }
+  const addAsset = (symbol: AssetSymbol) => {
+    if (allocations.find(a => a.symbol === symbol)) return;
+    setAllocations(prev => [...prev, { symbol, percentage: 0 }]);
   };
 
-  const updateAllocation = useCallback((symbol: string, newPercentage: number) => {
+  const removeAsset = (symbol: AssetSymbol) => {
+    if (allocations.length <= 1) return;
+    setAllocations(prev => prev.filter(a => a.symbol !== symbol));
+  };
+
+  const updateAllocation = useCallback((symbol: AssetSymbol, newPercentage: number) => {
     const clampedPercentage = Math.max(0, Math.min(100, newPercentage));
     setAllocations(prev => 
       prev.map(a => 
@@ -233,7 +229,7 @@ export default function PortfolioBuilder({ address }: Props) {
       
       if (suggestion.type === 'add' && !existing) {
         // Add new asset
-        return [...prev, { symbol: suggestion.asset, percentage: suggestion.suggestedAllocation }];
+        return [...prev, { symbol: suggestion.asset as AssetSymbol, percentage: suggestion.suggestedAllocation }];
       }
       
       if (suggestion.type === 'remove' && existing) {
@@ -269,49 +265,14 @@ export default function PortfolioBuilder({ address }: Props) {
           portfolio: allocations.map(a => ({ symbol: a.symbol, percentage: a.percentage }))
         }),
       });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to save');
+      }
       
       const responseData = await res.json();
       
-      if (!res.ok) {
-        throw new Error(responseData.error || 'Failed to save');
-      }
-      
-      // Check if the server verified the save
-      if (!responseData.verified) {
-        console.warn('[PortfolioBuilder] Server did not confirm verification');
-      }
-      
-      // EXTRA VERIFICATION: Fetch the portfolio back to confirm it was saved
-      // Add a small delay to account for Redis propagation
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      console.log('[PortfolioBuilder] Verifying save by fetching portfolio back...');
-      const verifyRes = await fetch(`/api/portfolio?address=${address}`);
-      const verifyData = await verifyRes.json();
-      
-      // Filter out 0% allocations for comparison (API filters these out when saving)
-      const nonZeroAllocations = allocations.filter(a => a.percentage > 0);
-      const savedAllocations = verifyData.portfolio?.allocations || [];
-      
-      // Compare allocations: check that we have the same number of non-zero allocations
-      // and that all symbols match
-      const savedSymbols = new Set(savedAllocations.map((a: { symbol: string }) => a.symbol));
-      const expectedSymbols = new Set(nonZeroAllocations.map(a => a.symbol));
-      
-      if (!verifyData.portfolio || 
-          savedAllocations.length !== nonZeroAllocations.length ||
-          savedSymbols.size !== expectedSymbols.size ||
-          !Array.from(expectedSymbols).every(symbol => savedSymbols.has(symbol))) {
-        console.error('[PortfolioBuilder] VERIFICATION FAILED - Portfolio not found after save!');
-        console.error('[PortfolioBuilder] Expected allocations:', nonZeroAllocations);
-        console.error('[PortfolioBuilder] Got:', savedAllocations);
-        throw new Error('Portfolio save verification failed. Your portfolio was not saved. Please try again.');
-      }
-      
-      console.log('[PortfolioBuilder] Save verified successfully!');
-      
-      setStatus({ type: 'success', message: 'Portfolio locked in! Good luck this week.' });
-      playSuccessBeep();
+      setStatus({ type: 'success', message: 'Portfolio locked in! Good luck this week. 🎯' });
       
       // Track referral if this is first portfolio save and user was referred
       if (!hasSavedPortfolio && typeof window !== 'undefined') {
@@ -346,17 +307,20 @@ export default function PortfolioBuilder({ address }: Props) {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Something went wrong. Please try again.';
       setStatus({ type: 'error', message });
-      playErrorBeep();
     } finally {
       setSaving(false);
     }
   };
 
-  const formatPrice = (price: number | undefined) => {
-    if (price === undefined || price === null) return '—';
+  const formatPrice = (price: number) => {
     if (price >= 1000) return `$${(price / 1000).toFixed(1)}k`;
     if (price >= 1) return `$${price.toFixed(2)}`;
     return `$${price.toFixed(4)}`;
+  };
+
+  const formatChange = (change: number) => {
+    const sign = change >= 0 ? '+' : '';
+    return `${sign}${change.toFixed(2)}%`;
   };
 
   const selectedSymbols = allocations.map(a => a.symbol);
@@ -391,7 +355,7 @@ export default function PortfolioBuilder({ address }: Props) {
           <p className="text-sm text-white/50">
             {isLocked 
               ? 'Picks are locked. Come back next Monday!'
-              : 'Select up to 3 assets and allocate percentages'
+              : 'Allocate percentages to your selected assets'
             }
           </p>
         </div>
@@ -407,34 +371,6 @@ export default function PortfolioBuilder({ address }: Props) {
           </span>
         </div>
       </div>
-
-      {/* Emulation Banner */}
-      {emulatingMaster && (
-        <div className="rounded-xl border border-base-blue/20 bg-gradient-to-r from-base-blue/10 to-purple-600/10 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-base-blue/20 text-lg">
-                👑
-              </div>
-              <div>
-                <div className="flex items-center gap-2 text-sm font-medium text-white">
-                  <span>Emulating</span>
-                  <span className="text-base-blue">{emulatingMaster.masterName}</span>
-                </div>
-                <p className="text-xs text-white/50">
-                  Customize the strategy to make it your own
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setEmulatingMaster(null)}
-              className="text-xs text-white/40 hover:text-white/60"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Lock Warning */}
       {isLocked && (
@@ -500,18 +436,18 @@ export default function PortfolioBuilder({ address }: Props) {
           )}
           
           {/* Quick allocation summary */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
             {allocations.filter(a => a.percentage > 0).map((a) => {
-              const asset = getAsset(a.symbol);
+              const asset = ASSETS.find(asset => asset.symbol === a.symbol);
               return (
                 <div
                   key={a.symbol}
                   className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs"
-                  style={{ backgroundColor: `${asset?.color || '#666'}20` }}
+                  style={{ backgroundColor: `${asset?.color}20` }}
                 >
                   <div
                     className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: asset?.color || '#666' }}
+                    style={{ backgroundColor: asset?.color }}
                   />
                   <span className="font-mono text-white">{a.symbol}</span>
                   <span className="text-white/50">{a.percentage}%</span>
@@ -542,27 +478,92 @@ export default function PortfolioBuilder({ address }: Props) {
         </div>
       )}
 
-      {/* Asset Selection with new AssetSelector */}
+      {/* Asset Selection */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium uppercase tracking-wider text-white/40">Select Assets</span>
           <button
             onClick={autoBalance}
-            disabled={isLocked || allocations.length === 0}
+            disabled={isLocked}
             className="text-xs text-base-blue hover:text-base-blue-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Auto-balance
           </button>
         </div>
         
-        <AssetSelector
-          selectedAssets={selectedSymbols}
-          onToggleAsset={toggleAsset}
-          maxAssets={3}
-          disabled={!address || isLocked}
-          prices={prices}
-          pricesLoading={pricesLoading}
-        />
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {ASSETS.map((asset) => {
+            const isSelected = selectedSymbols.includes(asset.symbol);
+            const priceData = prices[asset.symbol];
+            const isPositive = priceData && priceData.change24h >= 0;
+            
+            return (
+              <button
+                key={asset.symbol}
+                onClick={() => isSelected ? removeAsset(asset.symbol) : addAsset(asset.symbol)}
+                disabled={!address || isLocked}
+                className={`
+                  group relative overflow-hidden rounded-2xl border p-4 text-left transition-all duration-300
+                  ${isSelected 
+                    ? 'border-base-blue/50 bg-base-blue/10' 
+                    : 'border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/5'
+                  }
+                  ${(!address || isLocked) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
+                `}
+              >
+                {/* Selection indicator */}
+                {isSelected && (
+                  <div className="absolute top-2 right-2">
+                    <svg className="h-5 w-5 text-accent-emerald" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                )}
+                
+                {/* Glow effect */}
+                {isSelected && (
+                  <div 
+                    className="absolute inset-0 opacity-20 blur-2xl"
+                    style={{ backgroundColor: asset.color }}
+                  />
+                )}
+                
+                {/* Logo */}
+                <div className={`mb-3 transition-transform duration-300 ${isSelected ? 'scale-110' : 'group-hover:scale-105'}`}>
+                  <Image
+                    src={asset.logo}
+                    alt={asset.name}
+                    width={40}
+                    height={40}
+                    className="rounded-full"
+                  />
+                </div>
+                
+                {/* Info */}
+                <div className="space-y-1">
+                  <div className="font-mono text-lg font-bold text-white">{asset.symbol}</div>
+                  <div className="text-xs text-white/40">{asset.name}</div>
+                </div>
+                
+                {/* Price with 24h change */}
+                <div className="mt-3 space-y-1">
+                  {pricesLoading ? (
+                    <div className="h-4 w-16 rounded shimmer" />
+                  ) : priceData ? (
+                    <>
+                      <div className="font-mono text-sm text-white/80">
+                        {formatPrice(priceData.price)}
+                      </div>
+                      <div className={`font-mono text-xs ${isPositive ? 'text-accent-emerald' : 'text-accent-rose'}`}>
+                        {formatChange(priceData.change24h)}
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Allocation Sliders */}
@@ -574,49 +575,24 @@ export default function PortfolioBuilder({ address }: Props) {
           
           <div className="space-y-3">
             {allocations.map((allocation) => {
-              const asset = getAsset(allocation.symbol);
-              if (!asset) return null;
+              const asset = ASSETS.find(a => a.symbol === allocation.symbol)!;
               
               return (
                 <div
                   key={allocation.symbol}
-                  className="rounded-xl border border-white/5 bg-white/[0.02] p-3 sm:p-4"
+                  className="rounded-xl border border-white/5 bg-white/[0.02] p-4"
                 >
-                  {/* Mobile: Stack layout, Desktop: Row layout */}
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                    {/* Asset info and remove button (mobile) */}
-                    <div className="flex items-center justify-between sm:justify-start sm:w-28">
-                      <div className="flex items-center gap-2 sm:gap-3">
-                        <div 
-                          className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full"
-                          style={{ backgroundColor: `${asset.color}20` }}
-                        >
-                          <Image
-                            src={asset.logo}
-                            alt={asset.name}
-                            width={24}
-                            height={24}
-                            className="rounded-full"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                            }}
-                          />
-                        </div>
-                        <span className="font-mono text-sm sm:text-base font-bold text-white">{asset.symbol}</span>
-                      </div>
-                      
-                      {/* Mobile remove button */}
-                      {allocations.length > 1 && !isLocked && (
-                        <button
-                          onClick={() => toggleAsset(allocation.symbol)}
-                          className="flex sm:hidden h-7 w-7 items-center justify-center rounded-lg text-white/30 hover:bg-accent-rose/10 hover:text-accent-rose transition-colors"
-                        >
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      )}
+                  <div className="flex items-center gap-4">
+                    {/* Asset info */}
+                    <div className="flex items-center gap-3 w-28">
+                      <Image
+                        src={asset.logo}
+                        alt={asset.name}
+                        width={32}
+                        height={32}
+                        className="rounded-full"
+                      />
+                      <span className="font-mono font-bold text-white">{asset.symbol}</span>
                     </div>
                     
                     {/* Slider */}
@@ -642,7 +618,7 @@ export default function PortfolioBuilder({ address }: Props) {
                     </div>
                     
                     {/* Controls */}
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex items-center gap-2">
                       <button
                         onClick={() => updateAllocation(allocation.symbol, allocation.percentage - 5)}
                         disabled={isLocked}
@@ -660,7 +636,7 @@ export default function PortfolioBuilder({ address }: Props) {
                         value={allocation.percentage}
                         onChange={(e) => updateAllocation(allocation.symbol, parseInt(e.target.value) || 0)}
                         disabled={isLocked}
-                        className="w-14 sm:w-16 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-center font-mono text-sm text-white focus:border-base-blue focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-16 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-center font-mono text-sm text-white focus:border-base-blue focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       <span className="text-white/40">%</span>
                       
@@ -674,11 +650,11 @@ export default function PortfolioBuilder({ address }: Props) {
                         </svg>
                       </button>
                       
-                      {/* Desktop remove button */}
+                      {/* Remove button */}
                       {allocations.length > 1 && !isLocked && (
                         <button
-                          onClick={() => toggleAsset(allocation.symbol)}
-                          className="hidden sm:flex h-8 w-8 items-center justify-center rounded-lg text-white/30 hover:bg-accent-rose/10 hover:text-accent-rose transition-colors"
+                          onClick={() => removeAsset(allocation.symbol)}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-white/30 hover:bg-accent-rose/10 hover:text-accent-rose transition-colors"
                         >
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -737,14 +713,14 @@ export default function PortfolioBuilder({ address }: Props) {
             {allocations
               .filter(a => a.percentage > 0)
               .map((allocation, idx) => {
-                const asset = getAsset(allocation.symbol);
+                const asset = ASSETS.find(a => a.symbol === allocation.symbol)!;
                 return (
                   <div
                     key={allocation.symbol}
                     className="h-full flex items-center justify-center text-xs font-bold text-white transition-all duration-300"
                     style={{
                       width: `${allocation.percentage}%`,
-                      backgroundColor: asset?.color || '#666',
+                      backgroundColor: asset.color,
                       marginLeft: idx > 0 ? '2px' : 0,
                     }}
                   >
@@ -767,15 +743,15 @@ export default function PortfolioBuilder({ address }: Props) {
           {/* Legend */}
           <div className="mt-4 flex flex-wrap gap-4">
             {allocations.map((allocation) => {
-              const asset = getAsset(allocation.symbol);
+              const asset = ASSETS.find(a => a.symbol === allocation.symbol)!;
               return (
                 <div key={allocation.symbol} className="flex items-center gap-2">
                   <div
                     className="h-3 w-3 rounded-full"
-                    style={{ backgroundColor: asset?.color || '#666' }}
+                    style={{ backgroundColor: asset.color }}
                   />
                   <span className="text-sm text-white/60">
-                    {allocation.symbol}: <span className="font-mono font-bold text-white">{allocation.percentage}%</span>
+                    {asset.symbol}: <span className="font-mono font-bold text-white">{allocation.percentage}%</span>
                   </span>
                 </div>
               );

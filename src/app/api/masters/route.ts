@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAllMasters, getMastersByNarrative, createSampleMasters, Master } from '@/lib/masters';
+import { getAllMasters, getMastersByNarrative, Master } from '@/lib/masters';
 import { NarrativeType } from '@/lib/narratives';
 
 export const dynamic = 'force-dynamic';
@@ -12,17 +12,13 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get('sortBy') || 'return7D';
     const limit = parseInt(searchParams.get('limit') || '50');
 
-    // Get masters (using sample data for now)
+    // Get masters from Redis (with fallback to samples)
     let masters: Master[];
     
     if (narrative) {
-      // In production: await getMastersByNarrative(narrative);
-      masters = createSampleMasters().filter(m => 
-        m.narratives.includes(narrative)
-      );
+      masters = await getMastersByNarrative(narrative);
     } else {
-      // In production: await getAllMasters();
-      masters = createSampleMasters();
+      masters = await getAllMasters();
     }
 
     // Filter by tier

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import PortfolioBuilder from '@/components/portfolio/PortfolioBuilder';
+import PerformanceChart from '@/components/portfolio/PerformanceChart';
 import LeaderboardPreview from '@/components/leaderboard/LeaderboardPreview';
 import Nav from '@/components/chrome/Nav';
 import TutorialModal from '@/components/onboarding/TutorialModal';
@@ -291,7 +292,7 @@ export default function HomeClient() {
         <div className="grid gap-8 lg:grid-cols-3">
           {/* Portfolio Builder - Takes 2 columns */}
           <section
-            className="lg:col-span-2 animate-fade-in-up"
+            className="lg:col-span-2 space-y-6 animate-fade-in-up"
             style={{ animationDelay: '200ms' }}
           >
             <div className="rounded-2xl border border-white/5 bg-surface-2 p-6">
@@ -299,6 +300,13 @@ export default function HomeClient() {
                 <PortfolioBuilder address={address} />
               </ErrorBoundary>
             </div>
+            
+            {/* Portfolio Performance Chart */}
+            {address && (
+              <ErrorBoundary name="PerformanceChart">
+                <PerformanceChart address={address} height={250} />
+              </ErrorBoundary>
+            )}
           </section>
 
           {/* Sidebar */}
