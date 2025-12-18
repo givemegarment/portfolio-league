@@ -282,14 +282,29 @@ export default function PortfolioBuilder({ address }: Props) {
       }
       
       // EXTRA VERIFICATION: Fetch the portfolio back to confirm it was saved
+      // Add a small delay to account for Redis propagation
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       console.log('[PortfolioBuilder] Verifying save by fetching portfolio back...');
       const verifyRes = await fetch(`/api/portfolio?address=${address}`);
       const verifyData = await verifyRes.json();
       
-      if (!verifyData.portfolio || verifyData.portfolio.allocations?.length !== allocations.length) {
+      // Filter out 0% allocations for comparison (API filters these out when saving)
+      const nonZeroAllocations = allocations.filter(a => a.percentage > 0);
+      const savedAllocations = verifyData.portfolio?.allocations || [];
+      
+      // Compare allocations: check that we have the same number of non-zero allocations
+      // and that all symbols match
+      const savedSymbols = new Set(savedAllocations.map((a: { symbol: string }) => a.symbol));
+      const expectedSymbols = new Set(nonZeroAllocations.map(a => a.symbol));
+      
+      if (!verifyData.portfolio || 
+          savedAllocations.length !== nonZeroAllocations.length ||
+          savedSymbols.size !== expectedSymbols.size ||
+          !Array.from(expectedSymbols).every(symbol => savedSymbols.has(symbol))) {
         console.error('[PortfolioBuilder] VERIFICATION FAILED - Portfolio not found after save!');
-        console.error('[PortfolioBuilder] Expected allocations:', allocations);
-        console.error('[PortfolioBuilder] Got:', verifyData.portfolio);
+        console.error('[PortfolioBuilder] Expected allocations:', nonZeroAllocations);
+        console.error('[PortfolioBuilder] Got:', savedAllocations);
         throw new Error('Portfolio save verification failed. Your portfolio was not saved. Please try again.');
       }
       
