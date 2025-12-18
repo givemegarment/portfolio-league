@@ -431,7 +431,8 @@ export async function isFollowing(userAddress: string, masterAddress: string): P
     const normalizedMaster = masterAddress.toLowerCase();
     const normalizedUser = userAddress.toLowerCase();
     
-    return await redis.sismember(`${MASTER_FOLLOWERS_PREFIX}${normalizedMaster}`, normalizedUser);
+    const result = await redis.sismember(`${MASTER_FOLLOWERS_PREFIX}${normalizedMaster}`, normalizedUser);
+    return result === 1;
   } catch (error) {
     console.error('Error checking follow status:', error);
     return false;
