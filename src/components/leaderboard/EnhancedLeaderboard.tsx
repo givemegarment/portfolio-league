@@ -2,12 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { getAsset } from '@/lib/assets';
 import { COMPETITION_CONFIGS, type CompetitionType } from '@/lib/competitions';
 import { PerformanceSparkline } from '@/components/portfolio/PerformanceChart';
-import FollowButton from '@/components/social/FollowButton';
-import CopyTradeButton from '@/components/social/CopyTradeButton';
 
 type AllocationItem = {
   symbol: string;
@@ -139,59 +136,7 @@ function SkeletonRow() {
           <div className="h-5 w-16 rounded shimmer" />
         </div>
       </td>
-      <td className="px-4 py-4"><div className="h-6 w-16 rounded shimmer" /></td>
     </tr>
-  );
-}
-
-function ShareButton({ address, score, rank }: { address: string; score: number; rank: number }) {
-  const [copied, setCopied] = useState(false);
-  
-  const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://portfolio-league.vercel.app';
-  const frameUrl = `${BASE_URL}/frame/${address}`;
-  const shareText = `Check out this portfolio on Portfolio League! ${score >= 0 ? '+' : ''}${score.toFixed(2)}% return, ranked #${rank}`;
-  
-  const handleShare = async () => {
-    // Try native share first
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Portfolio League',
-          text: shareText,
-          url: frameUrl,
-        });
-        return;
-      } catch {
-        // Fall through to clipboard
-      }
-    }
-    
-    // Fallback to clipboard
-    try {
-      await navigator.clipboard.writeText(`${shareText}\n${frameUrl}`);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
-  };
-
-  return (
-    <button
-      onClick={handleShare}
-      className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1.5 text-xs font-medium text-white/60 hover:bg-white/10 hover:text-white transition-colors"
-      title={copied ? 'Copied!' : 'Share'}
-    >
-      {copied ? (
-        <svg className="h-3.5 w-3.5 text-accent-emerald" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
-      ) : (
-        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-        </svg>
-      )}
-    </button>
   );
 }
 
@@ -200,10 +145,6 @@ type Props = {
   defaultTimeframe?: CompetitionType;
   limit?: number;
   className?: string;
-  week?: number | null;
-  season?: string;
-  highlightAddress?: string;
-  currentUserAddress?: string;
 };
 
 export default function EnhancedLeaderboard({
@@ -211,17 +152,12 @@ export default function EnhancedLeaderboard({
   defaultTimeframe = 'weekly',
   limit = 50,
   className = '',
-  week,
-  season,
-  highlightAddress,
-  currentUserAddress,
 }: Props) {
   const [rows, setRows] = useState<LeaderboardRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState<CompetitionType>(defaultTimeframe);
   const [filter, setFilter] = useState<FilterType>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [userRank, setUserRank] = useState<number | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -229,29 +165,10 @@ export default function EnhancedLeaderboard({
     const fetchLeaderboard = () => {
       setError(null);
       
-      const params = new URLSearchParams({
-        limit: limit.toString(),
-        type: timeframe,
-        ...(week && { week: week.toString() }),
-        ...(season && { season }),
-      });
-      
-      fetch(`/api/leaderboard?${params}`)
+      fetch(`/api/leaderboard?limit=${limit}&type=${timeframe}`)
         .then((r) => r.json())
         .then((data: LeaderboardRow[]) => {
-          if (alive) {
-            setRows(Array.isArray(data) ? data : []);
-            
-            // Find user's rank
-            if (highlightAddress) {
-              const userEntry = data.find(
-                r => r.user.toLowerCase() === highlightAddress.toLowerCase()
-              );
-              if (userEntry) {
-                setUserRank(userEntry.rank);
-              }
-            }
-          }
+          if (alive) setRows(Array.isArray(data) ? data : []);
         })
         .catch(() => {
           if (alive) setError('Failed to load leaderboard');
@@ -265,7 +182,7 @@ export default function EnhancedLeaderboard({
       alive = false;
       clearInterval(interval);
     };
-  }, [limit, timeframe, week, season, highlightAddress]);
+  }, [limit, timeframe]);
 
   // Apply filters
   const filteredRows = rows?.filter((row) => {
@@ -385,7 +302,6 @@ export default function EnhancedLeaderboard({
               <th className="px-4 py-3 w-24">Return</th>
               <th className="px-4 py-3 w-28">Trend</th>
               <th className="px-4 py-3">Portfolio</th>
-              <th className="px-4 py-3 w-32">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -401,7 +317,7 @@ export default function EnhancedLeaderboard({
 
             {filteredRows && filteredRows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center">
+                <td colSpan={5} className="px-4 py-12 text-center">
                   <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-white/5">
                     <svg className="h-8 w-8 text-white/20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -419,18 +335,15 @@ export default function EnhancedLeaderboard({
 
             {filteredRows?.map((r, idx) => {
               const isTopThree = r.rank <= 3;
-              const isUser = highlightAddress && r.user.toLowerCase() === highlightAddress.toLowerCase();
               const scoreValue = typeof r.score === 'number' ? r.score : 0;
               const isPositive = scoreValue >= 0;
 
               return (
                 <tr
                   key={`${r.user}-${r.rank}`}
-                  id={isUser ? 'user-row' : undefined}
                   className={`
                     border-b border-white/5 transition-colors duration-200
                     ${isTopThree ? 'bg-white/[0.02]' : ''}
-                    ${isUser ? 'bg-base-blue/10 ring-2 ring-base-blue/30' : ''}
                     hover:bg-white/[0.04]
                   `}
                   style={{ animationDelay: `${idx * 50}ms` }}
@@ -439,13 +352,10 @@ export default function EnhancedLeaderboard({
                     <RankBadge rank={r.rank} />
                   </td>
                   <td className="px-4 py-3">
-                    <Link
-                      href={`/profile/${r.user}`}
-                      className="flex items-center gap-3 group"
-                    >
+                    <div className="flex items-center gap-3">
                       <Avatar address={r.user} />
                       <div>
-                        <div className="font-mono text-sm font-medium text-white group-hover:text-base-blue transition-colors">
+                        <div className="font-mono text-sm font-medium text-white">
                           {shortenAddress(r.user)}
                         </div>
                         {r.winRate !== undefined && (
@@ -454,7 +364,7 @@ export default function EnhancedLeaderboard({
                           </div>
                         )}
                       </div>
-                    </Link>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <span className={`font-mono font-semibold ${isPositive ? 'text-accent-emerald' : 'text-accent-rose'}`}>
@@ -478,43 +388,6 @@ export default function EnhancedLeaderboard({
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <Link
-                        href={`/profile/${r.user}`}
-                        className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1.5 text-xs font-medium text-white/60 hover:bg-white/10 hover:text-white transition-colors"
-                        title="View Profile"
-                      >
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                      </Link>
-                      {currentUserAddress && currentUserAddress.toLowerCase() !== r.user.toLowerCase() && (
-                        <>
-                          <FollowButton
-                            address={currentUserAddress}
-                            targetAddress={r.user}
-                            className="!px-2 !py-1.5 !text-xs"
-                          />
-                          <CopyTradeButton
-                            fromAddress={r.user}
-                            toAddress={currentUserAddress}
-                            className="!px-2 !py-1.5 !text-xs"
-                          />
-                        </>
-                      )}
-                      <a
-                        href={`/compare?address=${r.user}`}
-                        className="inline-flex items-center gap-1 rounded-lg bg-white/5 px-2 py-1.5 text-xs font-medium text-white/60 hover:bg-white/10 hover:text-white transition-colors"
-                        title="Compare"
-                      >
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                        </svg>
-                      </a>
-                      <ShareButton address={r.user} score={scoreValue} rank={r.rank} />
-                    </div>
-                  </td>
                 </tr>
               );
             })}
@@ -526,44 +399,15 @@ export default function EnhancedLeaderboard({
       {filteredRows && filteredRows.length > 0 && (
         <div className="border-t border-white/5 bg-surface-3/30 px-4 py-3">
           <div className="flex items-center justify-between text-xs text-white/40">
-            <div className="flex items-center gap-4">
-              <span>
-                Showing {filteredRows.length} of {rows?.length || 0} players
-              </span>
-              {userRank && (
-                <span className="text-base-blue">
-                  Your rank: #{userRank}
-                </span>
-              )}
-            </div>
+            <span>
+              Showing {filteredRows.length} of {rows?.length || 0} players
+            </span>
             <div className="flex items-center gap-2">
               <span className="text-white/30">
                 {COMPETITION_CONFIGS[timeframe].icon} {COMPETITION_CONFIGS[timeframe].name}
               </span>
-              {week && season && (
-                <span className="text-white/30">
-                  • {season.toUpperCase()} Week {week}
-                </span>
-              )}
             </div>
           </div>
-        </div>
-      )}
-      
-      {/* Scroll to user button */}
-      {userRank && userRank > 10 && (
-        <div className="border-t border-white/5 bg-surface-3/30 px-4 py-3 text-center">
-          <button
-            onClick={() => {
-              const element = document.getElementById('user-row');
-              if (element) {
-                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }
-            }}
-            className="text-xs text-base-blue hover:text-base-blue-light transition-colors"
-          >
-            Scroll to your position (#{userRank})
-          </button>
         </div>
       )}
     </div>

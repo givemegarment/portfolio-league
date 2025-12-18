@@ -49,32 +49,16 @@ async function fetchCurrentPrices(): Promise<Record<string, PriceData>> {
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const limitParam = searchParams.get('limit');
-  const seasonParam = searchParams.get('season');
-  const weekParam = searchParams.get('week');
   const limit = limitParam ? Math.min(100, Math.max(1, parseInt(limitParam))) : 50;
 
-  // Get week - use provided or current
-  const currentWeek = getCurrentWeek();
-  const season = seasonParam || currentWeek.season;
-  const week = weekParam ? parseInt(weekParam) : currentWeek.week;
+  // Get current week
+  const { season, week } = getCurrentWeek();
   const weekKey = getWeekKey(season, week);
 
-  console.log(`[Leaderboard] Fetching portfolios for ${weekKey}`);
-
   // Fetch all portfolios for this week
-  // @upstash/redis auto-deserializes JSON, so we get objects directly
-  let allPortfolios: Record<string, StoredPortfolio | string[]> | null = null;
-  
-  try {
-    allPortfolios = await redis.hgetall<Record<string, StoredPortfolio | string[]>>(weekKey);
-    console.log(`[Leaderboard] Found ${allPortfolios ? Object.keys(allPortfolios).length : 0} portfolios`);
-  } catch (error) {
-    console.error('[Leaderboard] Redis error:', error);
-    return NextResponse.json({ error: 'Failed to fetch leaderboard data' }, { status: 500 });
-  }
+  const allPortfolios = await redis.hgetall<Record<string, string>>(weekKey);
   
   if (!allPortfolios || Object.keys(allPortfolios).length === 0) {
-    console.log('[Leaderboard] No portfolios found for current week');
     return NextResponse.json([]);
   }
 
@@ -88,28 +72,29 @@ export async function GET(req: Request) {
     score: number;
   }> = [];
 
-  for (const [address, portfolioData] of Object.entries(allPortfolios)) {
+  for (const [address, portfolioJson] of Object.entries(allPortfolios)) {
     try {
-      // @upstash/redis auto-deserializes, so portfolioData is already an object
+      const parsed = JSON.parse(portfolioJson);
+      
       let portfolio: StoredPortfolio;
       
-      // Handle new format with entryPrices (already deserialized)
-      if (typeof portfolioData === 'object' && !Array.isArray(portfolioData) && portfolioData.allocations && portfolioData.entryPrices) {
-        portfolio = portfolioData as StoredPortfolio;
+      // Handle new format with entryPrices
+      if (parsed.allocations && parsed.entryPrices) {
+        portfolio = parsed as StoredPortfolio;
       }
       // Handle legacy format without entryPrices
-      else if (typeof portfolioData === 'object' && !Array.isArray(portfolioData) && portfolioData.allocations && Array.isArray(portfolioData.allocations)) {
+      else if (parsed.allocations && Array.isArray(parsed.allocations)) {
         // For legacy data without entry prices, we can't calculate real scores
         // Use 0 as score or skip
         portfolio = {
-          allocations: portfolioData.allocations,
+          allocations: parsed.allocations,
           entryPrices: {},
-          timestamp: portfolioData.timestamp || 0,
+          timestamp: parsed.timestamp || 0,
         };
       }
       // Handle very old format (just array of symbols)
-      else if (Array.isArray(portfolioData)) {
-        const symbols = portfolioData as string[];
+      else if (Array.isArray(parsed)) {
+        const symbols = parsed as string[];
         const equalWeight = Math.floor(100 / symbols.length);
         const remainder = 100 - (equalWeight * symbols.length);
         
@@ -142,7 +127,7 @@ export async function GET(req: Request) {
         score,
       });
     } catch (error) {
-      console.error(`Error processing portfolio for ${address}:`, error);
+      console.error(`Error parsing portfolio for ${address}:`, error);
       continue;
     }
   }
@@ -193,9 +178,8 @@ export async function POST(req: Request) {
     timestamp: Date.now(),
   };
 
-  // @upstash/redis auto-serializes objects, so don't use JSON.stringify
   await redis.hset(weekKey, {
-    [body.user]: portfolioData,
+    [body.user]: JSON.stringify(portfolioData),
   });
 
   return NextResponse.json({ ok: true, message: 'Portfolio saved via leaderboard API (deprecated)' });
