@@ -372,7 +372,7 @@ export default function EnhancedLeaderboard({
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <PerformanceSparkline width={80} height={24} />
+                    <PerformanceSparkline address={r.user} width={80} height={24} />
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
