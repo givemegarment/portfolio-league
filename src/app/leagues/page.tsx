@@ -240,7 +240,13 @@ export default function LeaguesPage() {
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
               {featuredLeagues.map((league) => (
-                <LeagueCard key={league.id} league={league} featured />
+                <LeagueCard 
+                  key={league.id} 
+                  league={league} 
+                  featured 
+                  onJoin={handleJoinLeague}
+                  joiningLeagueId={joiningLeagueId}
+                />
               ))}
             </div>
           </section>
@@ -290,7 +296,12 @@ export default function LeaguesPage() {
         {filteredLeagues.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredLeagues.map((league) => (
-              <LeagueCard key={league.id} league={league} />
+              <LeagueCard 
+                key={league.id} 
+                league={league}
+                onJoin={handleJoinLeague}
+                joiningLeagueId={joiningLeagueId}
+              />
             ))}
           </div>
         ) : (
@@ -502,7 +513,17 @@ function FilterButton({
   );
 }
 
-function LeagueCard({ league, featured = false }: { league: League; featured?: boolean }) {
+function LeagueCard({ 
+  league, 
+  featured = false,
+  onJoin,
+  joiningLeagueId,
+}: { 
+  league: League; 
+  featured?: boolean;
+  onJoin: (league: League) => void;
+  joiningLeagueId: string | null;
+}) {
   const typeConfig = getLeagueTypeConfig(league.type);
   const now = Date.now();
   const timeRemaining = Math.max(0, league.endsAt - now);
@@ -603,7 +624,7 @@ function LeagueCard({ league, featured = false }: { league: League; featured?: b
 
       {/* Join button */}
       <button
-        onClick={() => handleJoinLeague(league)}
+        onClick={() => onJoin(league)}
         disabled={joiningLeagueId === league.id}
         className="mt-4 w-full rounded-xl bg-white/5 py-2.5 text-sm font-medium text-white transition-all hover:bg-white/10 group-hover:bg-base-blue group-hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
       >
