@@ -69,7 +69,7 @@ export default function LeaguesPage() {
       // For invite leagues, prompt for invite code
       let inviteCode: string | undefined;
       if (league.type === 'invite') {
-        inviteCode = prompt('Enter invite code:');
+        inviteCode = prompt('Enter invite code:') ?? undefined;
         if (!inviteCode) {
           setJoiningLeagueId(null);
           return;
