@@ -44,6 +44,7 @@ export const metadata: Metadata = {
   manifest: '/site.webmanifest',
   // Farcaster Frame meta tags for embed preview
   other: {
+    'base:app_id': '6943dcf2d19763ca26ddc3fb',
     'fc:frame': 'vNext',
     'fc:frame:image': `${SITE}/api/og/home`,
     'fc:frame:image:aspect_ratio': '1.91:1',
