@@ -60,11 +60,24 @@ export default function ShareButtons({ address, allocations, score, rank }: Prop
     ? `My portfolio is ${score >= 0 ? '+' : ''}${score.toFixed(2)}% this week on Imitatio! 🎯 Think you can beat it?`
     : `Check out my Imitatio picks! 🎯 Think you can beat it?`;
 
-  // Warpcast share URL - uses embeds[] for rich Frame preview
-  const warpcastUrl = `https://warpcast.com/~/compose?text=${encodeURIComponent(shareText)}&embeds[]=${encodeURIComponent(frameUrl)}`;
-
   // Twitter/X share URL - includes frame URL for OG preview
   const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(frameUrl)}`;
+
+  // Native share function
+  const nativeShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'My Imitatio Portfolio',
+          text: shareText,
+          url: frameUrl,
+        });
+      } catch (err) {
+        // User cancelled or share failed
+        console.log('Share cancelled or failed');
+      }
+    }
+  };
 
   // Download the portfolio image as PNG
   const downloadImage = async () => {
@@ -197,26 +210,26 @@ export default function ShareButtons({ address, allocations, score, rank }: Prop
               </div>
               
               <div className="space-y-3">
-                {/* Warpcast */}
-                <a
-                  href={warpcastUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex w-full items-center gap-3 rounded-xl border border-purple-500/30 bg-purple-500/10 px-4 py-3 text-left transition-all hover:bg-purple-500/20"
-                >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-500">
-                    <svg className="h-5 w-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                {/* Native Share (if available) */}
+                {typeof navigator !== 'undefined' && 'share' in navigator && (
+                  <button
+                    onClick={nativeShare}
+                    className="flex w-full items-center gap-3 rounded-xl border border-base-blue/30 bg-base-blue/10 px-4 py-3 text-left transition-all hover:bg-base-blue/20"
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-base-blue">
+                      <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-white">Share</div>
+                      <div className="text-xs text-white/50">Share to your favorite app</div>
+                    </div>
+                    <svg className="ml-auto h-5 w-5 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
-                  </div>
-                  <div>
-                    <div className="font-semibold text-white">Share on Warpcast</div>
-                    <div className="text-xs text-white/50">Portfolio card shows automatically</div>
-                  </div>
-                  <svg className="ml-auto h-5 w-5 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
+                  </button>
+                )}
 
                 {/* Twitter/X */}
                 <a

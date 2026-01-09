@@ -871,3 +871,70 @@ body {
   content: '|';
   animation: blink 1s step-end infinite;
 }
+
+/* ============================================
+   TERMINAL-SPECIFIC STYLES
+   ============================================ */
+
+/* Flash animation for new trades */
+@keyframes flash {
+  0% {
+    background-color: rgba(0, 82, 255, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.animate-flash {
+  animation: flash 0.5s ease-out;
+}
+
+/* Thin scrollbar for terminal panels */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Hide scrollbar completely */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Terminal price colors with glow */
+.price-up {
+  color: #10B981;
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.3);
+}
+
+.price-down {
+  color: #EF4444;
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+}
+
+/* Order book depth bars */
+.depth-bar-bid {
+  background: linear-gradient(90deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0) 100%);
+}
+
+.depth-bar-ask {
+  background: linear-gradient(270deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0) 100%);
+}
