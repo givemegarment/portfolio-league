@@ -7,6 +7,7 @@ import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import NotificationBell from '@/components/NotificationBell';
 import SoundToggle from '@/components/chrome/SoundToggle';
 import ThemeToggle from '@/components/chrome/ThemeToggle';
+import UserIdentity from '@/components/UserIdentity';
 
 type WeekInfo = {
   season: string;
@@ -128,12 +129,7 @@ function WalletButton() {
           onClick={() => setShowDropdown(!showDropdown)}
           className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-white/10"
         >
-          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-base-blue to-purple-600 text-xs font-bold">
-            {address.slice(2, 4).toUpperCase()}
-          </div>
-          <span className="font-mono">
-            {address.slice(0, 6)}...{address.slice(-4)}
-          </span>
+          <UserIdentity address={address} avatarSize="sm" />
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
@@ -270,6 +266,18 @@ export default function Nav() {
 
         {/* Center - Navigation Links */}
         <div className="hidden md:flex items-center gap-6">
+          <Link
+            href="/charts"
+            className="text-sm font-medium text-white/60 hover:text-white transition-colors"
+          >
+            Charts
+          </Link>
+          <Link
+            href="/analyze"
+            className="text-sm font-medium text-white/60 hover:text-white transition-colors"
+          >
+            Analyze
+          </Link>
           <Link
             href="/masters"
             className="text-sm font-medium text-white/60 hover:text-white transition-colors"

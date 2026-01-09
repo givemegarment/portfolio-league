@@ -11,6 +11,13 @@ import HomePageSkeleton from '@/components/home/HomePageSkeleton';
 import CountdownTimer from '@/components/home/CountdownTimer';
 import PastWinners from '@/components/home/PastWinners';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import dynamic from 'next/dynamic';
+
+// Dynamic import for TickerTape
+const TickerTape = dynamic(
+  () => import('@/components/charts/TradingViewChart').then(mod => mod.TickerTape),
+  { ssr: false }
+);
 
 type Stats = {
   totalPlayers: number;
@@ -147,6 +154,10 @@ export default function HomeClient() {
       <ErrorBoundary name="Nav">
         <Nav />
       </ErrorBoundary>
+
+      {/* Live Price Ticker */}
+      <TickerTape symbols={['BTC', 'ETH', 'SOL', 'PEPE', 'DEGEN', 'AERO', 'OP', 'LINK']} />
+
       <TutorialModal />
 
       <main className="mx-auto max-w-6xl px-4 py-8">
