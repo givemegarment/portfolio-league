@@ -13,10 +13,30 @@ import PastWinners from '@/components/home/PastWinners';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import dynamic from 'next/dynamic';
 
-// Dynamic import for TickerTape
+// Dynamic imports for market components
 const TickerTape = dynamic(
   () => import('@/components/charts/TradingViewChart').then(mod => mod.TickerTape),
   { ssr: false }
+);
+
+const MarketStatsHeader = dynamic(
+  () => import('@/components/market/MarketStatsHeader'),
+  { ssr: false, loading: () => <div className="h-16 w-full shimmer rounded-xl" /> }
+);
+
+const TopMoversWidget = dynamic(
+  () => import('@/components/market/TopMoversWidget'),
+  { ssr: false, loading: () => <div className="h-64 w-full shimmer rounded-2xl" /> }
+);
+
+const TrendingAssets = dynamic(
+  () => import('@/components/market/TrendingAssets'),
+  { ssr: false, loading: () => <div className="h-64 w-full shimmer rounded-2xl" /> }
+);
+
+const MarketSentiment = dynamic(
+  () => import('@/components/market/MarketSentiment'),
+  { ssr: false, loading: () => <div className="h-48 w-full shimmer rounded-2xl" /> }
 );
 
 type Stats = {
@@ -158,9 +178,16 @@ export default function HomeClient() {
       {/* Live Price Ticker */}
       <TickerTape symbols={['BTC', 'ETH', 'SOL', 'PEPE', 'DEGEN', 'AERO', 'OP', 'LINK']} />
 
+      {/* Market Stats Header - DropsTab style */}
+      <div className="mx-auto max-w-6xl px-4 py-4">
+        <ErrorBoundary name="MarketStatsHeader">
+          <MarketStatsHeader />
+        </ErrorBoundary>
+      </div>
+
       <TutorialModal />
 
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className="mx-auto max-w-6xl px-4 pb-8">
         {/* Hero Section */}
         <section className="relative mb-12 overflow-hidden rounded-3xl border border-white/5 bg-surface-2 p-8 sm:p-12">
           {/* Background decoration */}
@@ -325,55 +352,73 @@ export default function HomeClient() {
             className="space-y-6 animate-fade-in-up"
             style={{ animationDelay: '300ms' }}
           >
+            {/* Market Sentiment */}
+            <ErrorBoundary name="MarketSentiment">
+              <MarketSentiment />
+            </ErrorBoundary>
+
+            {/* Top Movers */}
+            <ErrorBoundary name="TopMoversWidget">
+              <TopMoversWidget />
+            </ErrorBoundary>
+
             {/* Leaderboard */}
             <ErrorBoundary name="LeaderboardPreview">
               <LeaderboardPreview />
             </ErrorBoundary>
-
-            {/* How It Works */}
-            <div className="rounded-2xl border border-white/5 bg-surface-2 p-6">
-              <h3 className="mb-6 flex items-center gap-2 text-lg font-bold text-white tracking-tight">
-                <svg
-                  className="h-5 w-5 text-base-blue"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                How It Works
-              </h3>
-
-              <div className="space-y-6">
-                <HowItWorksStep
-                  step={1}
-                  title="Pick Your Assets"
-                  description="Choose from 25+ tokens including BTC, ETH, SOL, and Base ecosystem favorites"
-                />
-                <HowItWorksStep
-                  step={2}
-                  title="Lock In Picks"
-                  description="Submit before Sunday 23:59 UTC"
-                />
-                <HowItWorksStep
-                  step={3}
-                  title="Track Performance"
-                  description="Watch your ranking update with real prices"
-                />
-                <HowItWorksStep
-                  step={4}
-                  title="Win Prizes"
-                  description="Top 10% split the weekly prize pool"
-                />
-              </div>
-            </div>
           </aside>
         </div>
+
+        {/* Market Overview Section - DropsTab style */}
+        <section className="mt-8 grid gap-6 lg:grid-cols-2 animate-fade-in-up" style={{ animationDelay: '350ms' }}>
+          {/* Trending Assets */}
+          <ErrorBoundary name="TrendingAssets">
+            <TrendingAssets />
+          </ErrorBoundary>
+
+          {/* How It Works */}
+          <div className="rounded-2xl border border-white/5 bg-surface-2 p-6">
+            <h3 className="mb-6 flex items-center gap-2 text-lg font-bold text-white tracking-tight">
+              <svg
+                className="h-5 w-5 text-base-blue"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              How It Works
+            </h3>
+
+            <div className="space-y-6">
+              <HowItWorksStep
+                step={1}
+                title="Pick Your Assets"
+                description="Choose from 25+ tokens including BTC, ETH, SOL, and Base ecosystem favorites"
+              />
+              <HowItWorksStep
+                step={2}
+                title="Lock In Picks"
+                description="Submit before Sunday 23:59 UTC"
+              />
+              <HowItWorksStep
+                step={3}
+                title="Track Performance"
+                description="Watch your ranking update with real prices"
+              />
+              <HowItWorksStep
+                step={4}
+                title="Win Prizes"
+                description="Top 10% split the weekly prize pool"
+              />
+            </div>
+          </div>
+        </section>
 
         {/* Footer */}
         <footer
