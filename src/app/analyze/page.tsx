@@ -273,12 +273,13 @@ export default function AnalyzePage() {
             {/* Additional Analysis Grid */}
             <div className="grid gap-6 lg:grid-cols-2">
               {/* Correlation Matrix */}
-              <CorrelationMatrix allocations={activeAllocations} />
+              <CorrelationMatrix allocations={activeAllocations} prices={prices || undefined} />
 
               {/* Portfolio Metrics */}
               <PortfolioMetrics
                 allocations={activeAllocations}
                 entryPrices={activeEntryPrices}
+                prices={prices || undefined}
               />
             </div>
 

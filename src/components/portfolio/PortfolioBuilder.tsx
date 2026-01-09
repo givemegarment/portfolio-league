@@ -6,6 +6,8 @@ import ShareButtons from '@/components/share/ShareButtons';
 import CoachPanel from '@/components/coach/CoachPanel';
 import { type Suggestion } from '@/lib/ai-coach';
 import { calculateScore, type StoredPortfolio } from '@/lib/scoring';
+import { usePriceValidation } from '@/hooks/useLivePrices';
+import LivePerformanceChart from '@/components/portfolio/LivePerformanceChart';
 
 const ASSETS = [
   { 
@@ -71,6 +73,9 @@ export default function PortfolioBuilder({ address }: Props) {
     assetReturn: number;
     weightedReturn: number;
   }>>([]);
+
+  // Price validation for lock-in
+  const { isValidating, validate: validatePrices } = usePriceValidation();
 
   // Fetch real prices from API
   useEffect(() => {
@@ -309,23 +314,48 @@ export default function PortfolioBuilder({ address }: Props) {
     if (!canSave) return;
     setSaving(true);
     setStatus(null);
+
     try {
+      // Step 1: Validate prices are fresh (<30 seconds old)
+      const validation = await validatePrices();
+
+      if (!validation.isValid) {
+        // Prices are stale, show error
+        if (validation.ageSeconds < 0) {
+          throw new Error('Unable to fetch current prices. Please check your connection and try again.');
+        } else {
+          throw new Error(`Price data is ${validation.ageSeconds} seconds old. Please wait a moment and try again for accurate lock-in prices.`);
+        }
+      }
+
+      // Step 2: Extract entry prices from validated data for selected assets
+      const validatedEntryPrices: Record<string, number> = {};
+      for (const allocation of allocations) {
+        const priceData = validation.prices[allocation.symbol];
+        if (priceData) {
+          validatedEntryPrices[allocation.symbol] = priceData.price;
+        }
+      }
+
+      // Step 3: Save portfolio with validated prices
       const res = await fetch('/api/portfolio', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          address, 
-          portfolio: allocations.map(a => ({ symbol: a.symbol, percentage: a.percentage }))
+        body: JSON.stringify({
+          address,
+          portfolio: allocations.map(a => ({ symbol: a.symbol, percentage: a.percentage })),
+          entryPrices: validatedEntryPrices,
+          priceTimestamp: validation.timestamp
         }),
       });
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.error || 'Failed to save');
       }
-      
+
       const responseData = await res.json();
-      
-      setStatus({ type: 'success', message: 'Portfolio locked in! Good luck this week. 🎯' });
+
+      setStatus({ type: 'success', message: 'Portfolio locked in with live prices! Good luck this week.' });
       
       // Track referral if this is first portfolio save and user was referred
       if (!hasSavedPortfolio && typeof window !== 'undefined') {
@@ -512,6 +542,17 @@ export default function PortfolioBuilder({ address }: Props) {
                     </div>
                   ))}
                 </div>
+              )}
+
+              {/* Live Performance Chart */}
+              {address && Object.keys(entryPrices).length > 0 && (
+                <LivePerformanceChart
+                  address={address}
+                  assets={allocations.filter(a => a.percentage > 0).map(a => a.symbol)}
+                  weights={allocations.filter(a => a.percentage > 0).map(a => a.percentage)}
+                  entryPrices={entryPrices}
+                  height={200}
+                />
               )}
             </div>
           )}
@@ -844,7 +885,7 @@ export default function PortfolioBuilder({ address }: Props) {
       {/* Save Button */}
       <button
         onClick={save}
-        disabled={!canSave || saving}
+        disabled={!canSave || saving || isValidating}
         className="btn-primary w-full py-4 text-base"
       >
         {isLocked ? (
@@ -868,13 +909,21 @@ export default function PortfolioBuilder({ address }: Props) {
             </svg>
             Allocation Must Equal 100%
           </span>
+        ) : isValidating ? (
+          <span className="flex items-center justify-center gap-2">
+            <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            Validating Prices...
+          </span>
         ) : saving ? (
           <span className="flex items-center justify-center gap-2">
             <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
-            Saving...
+            Locking In...
           </span>
         ) : (
           <span className="flex items-center justify-center gap-2">
@@ -915,7 +964,7 @@ export default function PortfolioBuilder({ address }: Props) {
         <div className="flex flex-col items-center gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-4">
           <div className="text-center">
             <p className="text-sm font-medium text-white">Share your portfolio</p>
-            <p className="text-xs text-white/50">Challenge friends on Farcaster or X</p>
+            <p className="text-xs text-white/50">Challenge friends and show off your picks</p>
           </div>
           <ShareButtons
             address={address}

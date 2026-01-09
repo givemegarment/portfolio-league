@@ -7,10 +7,74 @@ type Allocation = {
   percentage: number;
 };
 
+type PriceData = {
+  price: number;
+  change24h: number;
+};
+
 type PortfolioMetricsProps = {
   allocations: Allocation[];
   entryPrices: Record<string, number>;
+  prices?: Record<string, PriceData>;
 };
+
+// Estimated annualized volatility based on asset type
+// In production, these would come from historical data
+const VOLATILITY_ESTIMATES: Record<string, number> = {
+  // Majors - lower volatility
+  BTC: 45,
+  ETH: 55,
+
+  // L1s - moderate-high volatility
+  SOL: 65,
+  AVAX: 60,
+  NEAR: 65,
+
+  // Memes - very high volatility
+  PEPE: 120,
+  WIF: 130,
+  BONK: 125,
+  DEGEN: 110,
+  BRETT: 115,
+  MOCHI: 120,
+  TOSHI: 115,
+  HIGHER: 110,
+
+  // Base ecosystem
+  AERO: 75,
+
+  // DeFi
+  LINK: 55,
+  UNI: 60,
+  AAVE: 55,
+
+  // L2s
+  OP: 65,
+  ARB: 65,
+
+  // Stables
+  USDC: 0.5,
+  USDT: 0.5,
+  DAI: 0.5,
+};
+
+function getAssetVolatility(symbol: string, prices?: Record<string, PriceData>): number {
+  const baseVolatility = VOLATILITY_ESTIMATES[symbol] || 70;
+
+  // If we have live price data, adjust volatility based on 24h change magnitude
+  if (prices && prices[symbol]) {
+    const change24h = Math.abs(prices[symbol].change24h);
+    // If 24h change is higher than expected, increase volatility estimate
+    const dailyExpected = baseVolatility / Math.sqrt(365);
+    if (change24h > dailyExpected * 2) {
+      return baseVolatility * 1.2; // 20% higher
+    } else if (change24h > dailyExpected) {
+      return baseVolatility * 1.1; // 10% higher
+    }
+  }
+
+  return baseVolatility;
+}
 
 /**
  * Displays portfolio metrics and statistics
@@ -18,8 +82,22 @@ type PortfolioMetricsProps = {
 export default function PortfolioMetrics({
   allocations,
   entryPrices,
+  prices,
 }: PortfolioMetricsProps) {
   const metrics = useMemo(() => {
+    if (!allocations || allocations.length === 0) {
+      return {
+        diversityScore: 0,
+        topConcentration: 0,
+        top3Concentration: 0,
+        assetCount: 0,
+        trackedAssets: 0,
+        sortedAllocations: [],
+        portfolioVolatility: 0,
+        hasLiveData: false,
+      };
+    }
+
     // Calculate diversity score (0-100 based on how evenly distributed allocations are)
     const maxDiversity = 100 / allocations.length;
     const diversitySum = allocations.reduce((sum, a) => {
@@ -36,7 +114,17 @@ export default function PortfolioMetrics({
     const assetCount = allocations.length;
 
     // Assets with entry prices tracked
-    const trackedAssets = Object.keys(entryPrices).length;
+    const trackedAssets = Object.keys(entryPrices || {}).length;
+
+    // Calculate portfolio volatility (weighted average of asset volatilities)
+    // Using simplified calculation (ignores correlations for simplicity)
+    let portfolioVolatility = 0;
+    for (const allocation of allocations) {
+      const assetVol = getAssetVolatility(allocation.symbol, prices);
+      portfolioVolatility += (allocation.percentage / 100) * assetVol;
+    }
+
+    const hasLiveData = prices && Object.keys(prices).length > 0;
 
     return {
       diversityScore,
@@ -45,8 +133,10 @@ export default function PortfolioMetrics({
       assetCount,
       trackedAssets,
       sortedAllocations,
+      portfolioVolatility,
+      hasLiveData,
     };
-  }, [allocations, entryPrices]);
+  }, [allocations, entryPrices, prices]);
 
   const getDiversityColor = (score: number) => {
     if (score >= 70) return '#10B981'; // Green - well diversified
@@ -60,24 +150,51 @@ export default function PortfolioMetrics({
     return 'Concentrated';
   };
 
+  if (metrics.assetCount === 0) {
+    return null;
+  }
+
+  const getVolatilityColor = (vol: number) => {
+    if (vol <= 40) return '#10B981'; // Green - low volatility
+    if (vol <= 70) return '#F59E0B'; // Amber - moderate
+    return '#EF4444'; // Red - high volatility
+  };
+
+  const getVolatilityLabel = (vol: number) => {
+    if (vol <= 40) return 'Low';
+    if (vol <= 70) return 'Moderate';
+    return 'High';
+  };
+
   return (
     <div className="rounded-2xl border border-white/5 bg-surface-2 p-6">
-      <h3 className="mb-4 flex items-center gap-2 text-lg font-bold text-white">
-        <svg
-          className="h-5 w-5 text-accent-emerald"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-          />
-        </svg>
-        Portfolio Metrics
-      </h3>
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-lg font-bold text-white">
+          <svg
+            className="h-5 w-5 text-accent-emerald"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+            />
+          </svg>
+          Portfolio Metrics
+        </h3>
+        {metrics.hasLiveData && (
+          <div className="flex items-center gap-1.5 rounded-full bg-accent-emerald/10 px-2 py-1 text-xs font-medium text-accent-emerald">
+            <div className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-emerald opacity-75"></span>
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent-emerald"></span>
+            </div>
+            Live Data
+          </div>
+        )}
+      </div>
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -120,14 +237,20 @@ export default function PortfolioMetrics({
           </div>
         </div>
 
-        {/* Top 3 Concentration */}
+        {/* Volatility */}
         <div className="rounded-xl bg-white/[0.03] p-4">
-          <div className="text-xs text-white/40">Top 3 Assets</div>
-          <div className="mt-1 text-2xl font-bold text-white">
-            {metrics.top3Concentration}%
+          <div className="text-xs text-white/40">Est. Volatility</div>
+          <div
+            className="mt-1 text-2xl font-bold"
+            style={{ color: getVolatilityColor(metrics.portfolioVolatility) }}
+          >
+            {metrics.portfolioVolatility.toFixed(0)}%
           </div>
-          <div className="mt-1 text-xs text-white/40">
-            of portfolio
+          <div
+            className="mt-1 text-xs font-medium"
+            style={{ color: getVolatilityColor(metrics.portfolioVolatility) }}
+          >
+            {getVolatilityLabel(metrics.portfolioVolatility)}
           </div>
         </div>
       </div>
@@ -216,3 +339,10 @@ export default function PortfolioMetrics({
     </div>
   );
 }
+
+
+
+
+
+
+

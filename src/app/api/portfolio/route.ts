@@ -28,6 +28,8 @@ type SavePayload = {
   address: string;
   portfolio?: AllocationItem[];
   basket?: string[]; // Legacy format
+  entryPrices?: Record<string, number>; // Client-validated entry prices
+  priceTimestamp?: number; // Timestamp of validated prices
 };
 
 type StoredPortfolio = {
@@ -159,15 +161,37 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'At least one allocation required' }, { status: 400 });
   }
 
-  // Fetch current prices for entry snapshot
-  const currentPrices = await fetchCurrentPrices();
-  
-  // Build entry prices map for the selected assets
-  const entryPrices: Record<string, number> = {};
-  for (const allocation of allocations) {
-    const price = currentPrices[allocation.symbol];
-    if (price) {
-      entryPrices[allocation.symbol] = price;
+  // Check if client provided validated prices (from price validation)
+  const MAX_PRICE_AGE_MS = 30 * 1000; // 30 seconds
+  const now = Date.now();
+  let entryPrices: Record<string, number> = {};
+
+  if (body.entryPrices && body.priceTimestamp) {
+    const priceAge = now - body.priceTimestamp;
+
+    // Validate that client-provided prices are fresh enough
+    if (priceAge < MAX_PRICE_AGE_MS) {
+      // Use client-validated prices
+      entryPrices = body.entryPrices;
+    } else {
+      // Client prices are too old, fetch fresh ones
+      console.warn(`Client prices are ${Math.floor(priceAge / 1000)}s old, fetching fresh prices`);
+      const currentPrices = await fetchCurrentPrices();
+      for (const allocation of allocations) {
+        const price = currentPrices[allocation.symbol];
+        if (price) {
+          entryPrices[allocation.symbol] = price;
+        }
+      }
+    }
+  } else {
+    // No client prices provided, fetch from API (fallback for older clients)
+    const currentPrices = await fetchCurrentPrices();
+    for (const allocation of allocations) {
+      const price = currentPrices[allocation.symbol];
+      if (price) {
+        entryPrices[allocation.symbol] = price;
+      }
     }
   }
 

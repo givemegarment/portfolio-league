@@ -26,13 +26,13 @@ function RiskGauge({ riskScore, riskGrade }: { riskScore: number; riskGrade: str
 
   return (
     <div className="flex flex-col items-center">
-      <div className="relative h-24 w-48 overflow-hidden">
+      <div className="relative h-28 w-52 overflow-hidden">
         {/* Background arc */}
-        <div className="absolute bottom-0 left-0 h-48 w-48 rounded-full border-[16px] border-white/10"
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-52 w-52 rounded-full border-[20px] border-white/5"
           style={{ clipPath: 'polygon(0 50%, 100% 50%, 100% 100%, 0 100%)' }}
         />
         {/* Colored segments */}
-        <div className="absolute bottom-0 left-0 h-48 w-48">
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-52 w-52">
           <svg viewBox="0 0 200 100" className="h-full w-full">
             <defs>
               <linearGradient id="riskGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -42,31 +42,51 @@ function RiskGauge({ riskScore, riskGrade }: { riskScore: number; riskGrade: str
                 <stop offset="75%" stopColor="#22C55E" />
                 <stop offset="100%" stopColor="#10B981" />
               </linearGradient>
+              <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                <feMerge>
+                  <feMergeNode in="coloredBlur"/>
+                  <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+              </filter>
             </defs>
             <path
               d="M 16 100 A 84 84 0 0 1 184 100"
               fill="none"
               stroke="url(#riskGradient)"
-              strokeWidth="16"
+              strokeWidth="20"
               strokeLinecap="round"
             />
           </svg>
         </div>
-        {/* Needle */}
+        {/* Risk Level Labels */}
+        <div className="absolute bottom-0 left-2 text-[10px] text-accent-rose font-medium">High</div>
+        <div className="absolute bottom-0 right-2 text-[10px] text-accent-emerald font-medium">Low</div>
+        {/* Needle with glow */}
         <div
-          className="absolute bottom-0 left-1/2 h-20 w-1 origin-bottom rounded-full bg-white shadow-lg transition-transform duration-700"
-          style={{ transform: `translateX(-50%) rotate(${rotation}deg)` }}
+          className="absolute bottom-0 left-1/2 h-20 w-1 origin-bottom rounded-full transition-transform duration-700 ease-out"
+          style={{
+            transform: `translateX(-50%) rotate(${rotation}deg)`,
+            background: 'linear-gradient(to top, white, rgba(255,255,255,0.6))',
+            boxShadow: `0 0 10px ${gradeColor}, 0 0 20px ${gradeColor}40`
+          }}
         />
-        {/* Center dot */}
-        <div className="absolute bottom-0 left-1/2 h-4 w-4 -translate-x-1/2 translate-y-1/2 rounded-full bg-white shadow-lg" />
+        {/* Center dot with glow */}
+        <div
+          className="absolute bottom-0 left-1/2 h-5 w-5 -translate-x-1/2 translate-y-1/2 rounded-full bg-white"
+          style={{ boxShadow: `0 0 12px ${gradeColor}` }}
+        />
       </div>
       {/* Score display */}
-      <div className="mt-4 text-center">
-        <div className="text-4xl font-bold" style={{ color: gradeColor }}>
+      <div className="mt-5 text-center">
+        <div
+          className="text-5xl font-bold transition-colors duration-300"
+          style={{ color: gradeColor, textShadow: `0 0 20px ${gradeColor}40` }}
+        >
           {riskGrade}
         </div>
-        <div className="text-sm text-white/60">
-          Risk Score: {riskScore}/100
+        <div className="mt-1 text-sm text-white/50 font-medium">
+          Risk Score: <span className="text-white/70 font-mono">{riskScore}</span>/100
         </div>
       </div>
     </div>
@@ -75,12 +95,31 @@ function RiskGauge({ riskScore, riskGrade }: { riskScore: number; riskGrade: str
 
 function CategoryDonut({ breakdown }: { breakdown: CategoryBreakdown[] }) {
   let cumulativePercent = 0;
+  const topCategory = breakdown.reduce((max, cat) => cat.percentage > max.percentage ? cat : max, breakdown[0]);
 
   return (
     <div className="flex items-center gap-6">
-      <div className="relative h-32 w-32">
-        <svg viewBox="0 0 36 36" className="h-full w-full -rotate-90">
-          {breakdown.map((cat, i) => {
+      <div className="relative h-36 w-36">
+        {/* Outer glow ring */}
+        <div className="absolute inset-0 rounded-full opacity-20"
+          style={{
+            background: `conic-gradient(${breakdown.map((cat, i) => {
+              const start = breakdown.slice(0, i).reduce((sum, c) => sum + c.percentage, 0);
+              return `${cat.color} ${start}% ${start + cat.percentage}%`;
+            }).join(', ')})`,
+            filter: 'blur(8px)'
+          }}
+        />
+        <svg viewBox="0 0 36 36" className="h-full w-full -rotate-90 relative z-10">
+          <circle
+            cx="18"
+            cy="18"
+            r="15.9"
+            fill="none"
+            stroke="rgba(255,255,255,0.05)"
+            strokeWidth="4"
+          />
+          {breakdown.map((cat) => {
             const strokeDasharray = `${cat.percentage} ${100 - cat.percentage}`;
             const strokeDashoffset = -cumulativePercent;
             cumulativePercent += cat.percentage;
@@ -93,24 +132,33 @@ function CategoryDonut({ breakdown }: { breakdown: CategoryBreakdown[] }) {
                 r="15.9"
                 fill="none"
                 stroke={cat.color}
-                strokeWidth="3"
+                strokeWidth="4"
                 strokeDasharray={strokeDasharray}
                 strokeDashoffset={strokeDashoffset}
-                className="transition-all duration-500"
+                strokeLinecap="round"
+                className="transition-all duration-700 ease-out"
               />
             );
           })}
         </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-xs text-white/60">{breakdown.length} types</span>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-2xl font-bold text-white">{breakdown.length}</span>
+          <span className="text-[10px] text-white/50">{breakdown.length === 1 ? 'Type' : 'Types'}</span>
         </div>
       </div>
-      <div className="flex flex-col gap-1.5">
+      <div className="flex flex-col gap-2">
         {breakdown.slice(0, 5).map(cat => (
-          <div key={cat.category} className="flex items-center gap-2">
-            <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
-            <span className="text-xs text-white/80">{cat.category}</span>
-            <span className="text-xs font-mono text-white/50">{cat.percentage}%</span>
+          <div key={cat.category} className="flex items-center gap-3 group">
+            <div
+              className="h-3 w-3 rounded-full transition-transform group-hover:scale-125"
+              style={{ backgroundColor: cat.color, boxShadow: `0 0 8px ${cat.color}40` }}
+            />
+            <div className="flex-1">
+              <span className="text-sm text-white/90 font-medium">{cat.category}</span>
+            </div>
+            <span className="text-sm font-mono font-bold" style={{ color: cat.color }}>
+              {cat.percentage}%
+            </span>
           </div>
         ))}
       </div>
